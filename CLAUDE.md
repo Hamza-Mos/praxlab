@@ -1,12 +1,13 @@
 # posttrainer
 
-Autonomous post-training harness inspired by Karpathy's autoresearch. Tree of self-contained workspaces — each with a `program.md` the user customizes, mutable training scripts, and experiment tracking. Agent-agnostic (works with any agent runtime).
+Autonomous training harness inspired by Karpathy's autoresearch. Tree of self-contained workspaces — each with a `program.md` the user customizes, mutable training scripts, and experiment tracking. Agent-agnostic (works with any agent runtime). Supports both pre-training (from scratch) and post-training (fine-tuning).
 
 ## Structure
+- `pretrain/` — Pre-training from scratch (autoresearch infrastructure, Modal GPU, BPB metric)
 - `tinker/rl/` — GRPO/RL with Tinker SDK (train.py + reward.py + prompts)
 - `tinker/sl/` — SFT with Tinker SDK (train.py + data.jsonl)
 - `prime/` — Prime Intellect hosted RL (environment building + iteration)
-- `rules.md` — Universal hard rules from 70+ experiments
+- `rules.md` — Universal hard rules from 70+ experiments (22 rules)
 
 ## How it works
 User edits `program.md` Section 1 in a leaf directory with their task description. Agent reads it, builds the setup, then loops forever: modify one thing → run → evaluate → keep/discard. Git tracks experiments.

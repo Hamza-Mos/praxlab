@@ -11,6 +11,9 @@ echo "Cleaning generated files..."
 rm -rf prime/.claude prime/.prime prime/.gitignore prime/README.md
 rm -rf prime/configs prime/environments prime/pyproject.toml prime/uv.lock prime/.venv
 
+# Pretrain generated files
+rm -rf pretrain/.venv pretrain/uv.lock
+
 # Python caches
 find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 find . -name '*.pyc' -delete 2>/dev/null || true

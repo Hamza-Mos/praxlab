@@ -59,3 +59,15 @@ These rules are derived from 70+ real training experiments (51 salesbench observ
 16. **W&B causes 8.8s event loop lag.** Disable during latency-sensitive training if needed.
 
 17. **Use ThreadPoolExecutor for blocking API calls in async contexts.** Synchronous API calls in asyncio loops cause deadlock at step 2. Wrap with ThreadPoolExecutor + sync client.
+
+## Pre-training Rules
+
+18. **Compare experiments at the same token count, not steps or epochs.** Tokens seen is the only fair comparison unit. A larger model trains fewer steps in 5 minutes — that's expected and accounted for by the fixed time budget.
+
+19. **Use BPB (bits per byte) as the primary metric.** BPB is tokenizer-agnostic: `BPB = loss_nats / (ln(2) * bytes_per_token)`. Do NOT compare raw cross-entropy loss across different tokenizers or vocab sizes.
+
+20. **Simplicity criterion.** Equal BPB + simpler code = KEEP. Small BPB gain + ugly complexity = DISCARD. A 0.001 improvement from deleting code is better than a 0.001 improvement from adding 20 lines.
+
+21. **No new dependencies.** Only use packages in pyproject.toml. The constraint forces creativity within bounds and ensures reproducibility.
+
+22. **VRAM is a soft constraint.** Some increase is acceptable for meaningful BPB gains, but it should not blow up dramatically. Always log peak_vram_mb.
