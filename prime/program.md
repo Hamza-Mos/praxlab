@@ -91,10 +91,12 @@ CLAUDE.md                 # Claude Code instructions
 
 ```
 LOOP FOREVER:
-  1. Read results.tsv + notes.md (reconstruct your state)
+  1. Reconstruct state: read results.tsv + ../lab context + ../lab failures
   2. Research if needed (read papers, docs, inspect logs from previous runs)
-  3. Decide what to try next
+  3. Decide what to try next + form hypothesis — WHY will this improve eval_reward_mean?
      Priority: reward function > environment design > data/curriculum > config
+       ../lab hypothesis "what you're changing" \
+         --mechanism "why it should improve reward"
   4. Modify ONE lever (one file change per experiment)
   5. Validate your change:
      - If env changed: test locally with `prime eval run <env_name> -m <model> -n 5`
@@ -108,16 +110,40 @@ LOOP FOREVER:
   9. Extract results from logs (reward curves, eval metrics)
   10. Record in results.tsv:
       <commit> <eval_reward_mean> <status> <description>
-  11. Decision:
+  11. Log result to lab:
+       ../lab result <E_ID> -v keep|discard|crash \
+         --metrics '{"eval_reward_mean": 0.72}' \
+         --mechanism-confirmed (or --mechanism-refuted) \
+         --theory-revision "what I learned"
+  12. Decision:
       - If eval_reward_mean IMPROVED → KEEP
       - If eval_reward_mean DID NOT improve → DISCARD: git reset --hard HEAD~1
       - If crashed → log as "crash", revert, try different approach
       - SPECIAL: If reward function changed → baseline_reset, always keep
-  12. Update notes.md with observations and next steps
+  13. Every 3-5 experiments → synthesize:
+       ../lab synthesize "what you learned" \
+         --experiments "e1,e2,e3" --decision continue|pivot
   NEVER STOP
 ```
 
+**Research discipline:** Speed without understanding is brute force. Before every experiment, explain WHY in `--mechanism`. After every result, confirm or refute the mechanism. Every 3-5 experiments, synthesize what you learned.
+
 **NEVER STOP**: Once the loop begins, do NOT pause to ask the human if you should continue. Do NOT ask "should I keep going?" or "is this a good stopping point?". The human might be asleep, or away from the computer and expects you to continue working *indefinitely* until manually stopped. You are autonomous. If you run out of ideas, think harder — read papers, redesign the environment, try different reward structures. The loop runs until the human interrupts you, period.
+
+### Your Tools
+
+```
+../lab hypothesis "title" -m "mechanism"                      # what + why
+../lab experiment H_ID --cost 0.0                             # log before running
+../lab result E_ID -v keep --metrics '{"eval_reward_mean": X}' # log after
+../lab insight "learned X" --type observation                  # standalone learning
+../lab direction "name" --theory "why"                         # research thread
+../lab synthesize "reflection" --decision continue             # periodic reflection
+../lab context                                                 # full history
+../lab status                                                  # budget check
+../lab best                                                    # best result
+../lab failures                                                # what didn't work
+```
 
 ### Pre-Run Validation
 Before every `prime rl run`, validate locally:

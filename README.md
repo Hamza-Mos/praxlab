@@ -8,25 +8,26 @@ Each directory is a self-contained workspace with its own `program.md` (agent in
 
 | I want to... | Go here | Run |
 |--------------|---------|-----|
-| **Pre-train from scratch (architecture research)** | `pretrain/` | `cd pretrain && your-agent` |
-| **RL (GRPO) with Tinker SDK** | `tinker/rl/` | `cd tinker/rl && your-agent` |
-| **SFT with Tinker SDK** | `tinker/sl/` | `cd tinker/sl && your-agent` |
-| **RL with Prime Intellect** | `prime/` | `cd prime && your-agent` |
+| **Pre-train from scratch (architecture research)** | `pretrain/` | `cd pretrain && ./run.sh` |
+| **RL (GRPO) with Tinker SDK** | `tinker/rl/` | `cd tinker/rl && ./run.sh` |
+| **SFT with Tinker SDK** | `tinker/sl/` | `cd tinker/sl && ./run.sh` |
+| **RL with Prime Intellect** | `prime/` | `cd prime && ./run.sh` |
 
 ### Step-by-step
 
 1. **Pick a directory** based on your training method and backend
 2. **Edit `program.md`** — fill in Section 1 with your task description, model, and cost budget
 3. **Set credentials** — `export TINKER_API_KEY=...`, `prime login`, or `modal setup`
-4. **Launch your agent** in that directory — it reads `program.md` and starts the autonomous loop
+4. **Launch:** `cd <directory> && ./run.sh` (default: Claude; also `./run.sh --agent codex` or `./run.sh --agent opencode`)
 
 The agent will:
 - Create an experiment branch (main stays clean as the starter template)
 - Build the training setup (reward function, data, config) from your task description
-- Run experiments autonomously
-- Track results in `results.tsv` and observations in `notes.md`
+- Form hypotheses with causal mechanisms before each experiment
+- Run experiments autonomously, confirm/refute mechanisms after each result
+- Track structured research memory via `lab` CLI (queryable failures, insights, syntheses)
 - Keep improvements, discard failures (via git commits on the experiment branch)
-- Scale difficulty via curriculum learning
+- Synthesize learnings every 3-5 experiments
 - Never stop until you tell it to (or it hits your cost budget)
 
 To reset after an experiment: `git checkout main` (or run `./clean.sh` to also remove generated files).
@@ -36,32 +37,44 @@ To reset after an experiment: `git checkout main` (or run `./clean.sh` to also r
 ```
 posttrainer/
 ├── README.md              ← you are here
+├── lab                    ← structured experiment tracking CLI (SQLite-backed)
 ├── rules.md               ← hard rules from 70+ real experiments
-├── clean.sh               ← reset generated files (Prime scaffolding, caches)
+├── clean.sh               ← reset generated files
+├── data/                  ← experiment database (gitignored)
+│   ├── experiments.db
+│   └── log.jsonl
 ├── pretrain/              ← pre-training from scratch (autoresearch)
 │   ├── program.md         ← agent instructions (edit Section 1)
+│   ├── campaign.yaml      ← metric + config for this leaf
+│   ├── run.sh             ← one-command agent launcher
 │   ├── train.py           ← model + optimizer + training loop (agent modifies)
 │   ├── prepare.py         ← data prep + eval (fixed, read-only)
 │   ├── modal_run.py       ← Modal cloud GPU execution (fixed)
-│   ├── notes.md           ← agent's lab notebook
+│   ├── notes.md           ← agent's lab notebook (optional)
 │   └── results.tsv        ← experiment log
 ├── tinker/
 │   ├── rl/                ← GRPO with Tinker SDK
 │   │   ├── program.md     ← agent instructions (edit Section 1)
+│   │   ├── campaign.yaml  ← metric + config
+│   │   ├── run.sh         ← agent launcher
 │   │   ├── train.py       ← training loop (agent modifies)
 │   │   ├── reward.py      ← reward function (agent modifies)
 │   │   ├── prompts.jsonl  ← training data (agent modifies)
 │   │   ├── eval_prompts.jsonl
-│   │   ├── notes.md       ← agent's lab notebook
-│   │   └── results.tsv    ← experiment log
+│   │   ├── notes.md
+│   │   └── results.tsv
 │   └── sl/                ← SFT with Tinker SDK
 │       ├── program.md
+│       ├── campaign.yaml
+│       ├── run.sh
 │       ├── train.py
 │       ├── data.jsonl
 │       ├── notes.md
 │       └── results.tsv
 └── prime/                 ← Prime Intellect hosted RL
     ├── program.md
+    ├── campaign.yaml
+    ├── run.sh
     ├── notes.md
     └── results.tsv
 ```
@@ -120,7 +133,7 @@ This project follows the [autoresearch](https://github.com/karpathy/autoresearch
 2. **Agent executes the loop** — tactical decisions (what hyperparams, what reward tweaks, what data to add)
 3. **Git tracks everything** — every experiment is a commit. Improvements are kept. Failures are reverted.
 4. **`results.tsv` is the scoreboard** — one number to optimize (val_bpb, eval_reward_mean, or eval_loss)
-5. **`notes.md` is the memory** — the agent's observations persist across sessions
+5. **`lab` CLI is the research memory** — structured hypotheses, mechanism tracking, failure avoidance, periodic synthesis. Queryable across sessions via SQLite.
 
 The key insight from [the blog post](https://hamzamostafa.com/blog/agents-training-their-own-models): agents are good at *execution* within constraints but poor at *judgment*. So we make the human decisions strategic and the agent decisions tactical. The constraints (rules.md, program.md) are what make it work.
 
