@@ -34,7 +34,7 @@ TASK_LM = "openai/gpt-4.1-nano"        # best model for this task
 REFLECTION_LM = "openai/gpt-5.4"      # flagship model for better reflection
 
 # Budget
-MAX_METRIC_CALLS = 500  # standard budget
+MAX_METRIC_CALLS = 2000  # max exploration with epsilon_greedy
 
 # Seed prompt to optimize (balanced few-shot with borderline examples)
 SEED = {
@@ -1292,6 +1292,7 @@ def main():
         task_lm=TASK_LM,
         reflection_lm=REFLECTION_LM,
         evaluator=exact_match_evaluator,
+        candidate_selection_strategy="epsilon_greedy",
         max_metric_calls=MAX_METRIC_CALLS,
         use_merge=True,
         cache_evaluation=True,
