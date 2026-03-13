@@ -74,6 +74,15 @@ SEED = {
         "-> bad (absolutist claim \u2014 'no other option' is exaggerated)\n\n"
         "Comment: \"The catch-rethrow pattern is redundant. Remove the try-catch to reduce noise.\"\n"
         "-> bad (cleanup suggestion, not a defect fix)\n\n"
+        "Comment: \"The regex ^[a-zA-Z0-9]+$ for email validation rejects all valid emails because it "
+        "doesn't allow @ or . — use a proper email regex or just check for @.\"\n"
+        "-> good (identifies a real functional bug — the regex breaks all valid inputs)\n\n"
+        "Comment: \"HTTP 201 is technically incorrect here — you're updating, not creating. Per RFC 7231, "
+        "use 200 or 204 instead.\"\n"
+        "-> bad (pedantic HTTP status code correction with no practical impact)\n\n"
+        "Comment: \"Indentation is inconsistent — lines 15-20 use tabs while the rest uses spaces. "
+        "Fix per .editorconfig.\"\n"
+        "-> bad (formatting/style complaint, not a defect)\n\n"
         "Return exactly one word: good or bad"
     )
 }
