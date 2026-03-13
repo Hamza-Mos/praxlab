@@ -34,13 +34,41 @@ TASK_LM = "openai/gpt-4.1-nano"        # weaker model to give GEPA more room
 REFLECTION_LM = "openai/gpt-5.4"      # flagship model for better reflection
 
 # Budget
-MAX_METRIC_CALLS = 500  # stage 1: weak seed, large budget for ultra-hard data
+MAX_METRIC_CALLS = 500  # stage 2: iterative seed from stage 1
 
 # Seed prompt to optimize
 SEED = {
     "system_prompt": (
-        "Classify the following code review comment as good or bad. "
-        "Respond with exactly one word: good or bad"
+        "You are classifying exactly one code review comment.\n\n"
+        "Task:\n- Decide whether the comment should be labeled `good` or `bad`.\n"
+        "- Output exactly one word:\n  - `good`\n  - `bad`\n\n"
+        "Output rules:\n- Return only `good` or `bad`.\n"
+        "- No explanation.\n- No quotes.\n- No punctuation.\n"
+        "- No extra words or whitespace beyond the single label.\n\n"
+        "Labeling standard:\n\n"
+        "Label `good` only if the comment is a strong substantive code review comment that is:\n"
+        "- specific and technically grounded,\n"
+        "- actionable,\n"
+        "- tied to a real correctness, security, reliability, maintainability, or performance concern,\n"
+        "- and ideally explains the concrete issue and/or suggests an appropriate fix.\n\n"
+        "Label `bad` for anything else, including:\n"
+        "- style-only, formatting-only, naming-only, or 'more idiomatic' suggestions without a concrete engineering benefit,\n"
+        "- generic praise, approval, or non-review comments,\n"
+        "- vague suggestions not tied to a specific technical risk,\n"
+        "- process/tooling complaints,\n"
+        "- comments whose technical reasoning is incorrect, misleading, speculative, or based on false claims,\n"
+        "- suggestions that may worsen behavior, security, or data integrity even if framed as user-friendly or actionable.\n\n"
+        "Important decision rule:\n"
+        "- A comment is `good` only if both the problem and the reasoning are technically correct and materially important.\n"
+        "- If the recommendation is detailed/actionable but based on flawed reasoning, label `bad`.\n\n"
+        "Suggested evaluation process:\n"
+        "1. Identify whether the comment points to a concrete issue in the code.\n"
+        "2. Determine whether the claimed issue is technically correct.\n"
+        "3. Determine whether it is meaningful for correctness, security, reliability, maintainability, or performance.\n"
+        "4. Check whether the guidance is actionable and appropriate.\n"
+        "5. If it is mostly style/preference/process, vague, praise-only, or technically wrong/misleading, label `bad`.\n"
+        "6. Otherwise label `good`.\n\n"
+        "Return exactly one word: good or bad"
     )
 }
 
