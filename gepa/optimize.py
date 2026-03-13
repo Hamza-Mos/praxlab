@@ -69,7 +69,7 @@ def _d(input, answer):
     """Create a data instance with required fields."""
     return {"input": input, "answer": answer, "additional_context": {}}
 
-# --- TRAINSET: 70 labeled code review examples (35 good, 35 bad) ---
+# --- TRAINSET: 90 labeled code review examples (45 good, 45 bad) ---
 # Includes borderline cases to break length/surface-level shortcuts
 TRAINSET = [
     # ---- GOOD reviews (35) ----
@@ -354,9 +354,121 @@ TRAINSET = [
         "reasonable and aligns with what we discussed in last week's design review. Approving.",
         "bad"
     ),
+
+    # ---- MORE TRAINING: ultra-hard (10 good, 10 bad) ----
+    # GOOD: framework/language-specific gotchas
+    _d(
+        "The `@PostConstruct` method calls `this.fetchConfig()` which is `@Async`. But "
+        "`@Async` is proxy-based — calling it from within the same class bypasses the proxy. "
+        "The config fetch runs synchronously, blocking startup for 30 seconds.",
+        "good"
+    ),
+    _d(
+        "The `WeakHashMap` is keyed by `String`. String literals are interned by the JVM and "
+        "never garbage collected, so entries with literal keys will never be evicted. This "
+        "effectively makes it a regular HashMap for most of your keys, defeating the purpose.",
+        "good"
+    ),
+    _d(
+        "`Arrays.asList()` returns a fixed-size list backed by the array. The `add()` call on "
+        "line 20 will throw `UnsupportedOperationException` at runtime. Use `new ArrayList<>(Arrays.asList(...))` "
+        "if you need a mutable list.",
+        "good"
+    ),
+    _d(
+        "The `SimpleDateFormat` on line 5 is a class field, but `SimpleDateFormat` is not "
+        "thread-safe. Concurrent requests will corrupt the internal calendar state, producing "
+        "wrong dates intermittently. Use `DateTimeFormatter` (immutable) or ThreadLocal.",
+        "good"
+    ),
+    _d(
+        "The `PreparedStatement` is created inside the loop but never closed. Each iteration "
+        "leaks a statement. After ~100 iterations you'll hit the database cursor limit and "
+        "all subsequent queries fail. Move the creation outside the loop and reuse it.",
+        "good"
+    ),
+    _d("Dangling pointer: `buf` freed on line 12 but returned on line 15.", "good"),
+    _d("Uninitialized `sum` variable — will contain garbage on first use.", "good"),
+    _d("Buffer overflow: `sprintf` with `%s` and no length limit on user input.", "good"),
+    _d("`strcmp` returns 0 for equal, not true. The `if (strcmp(...))` is inverted.", "good"),
+    _d("Use-after-move: `vec` accessed on line 20 after `std::move(vec)` on line 18.", "good"),
+
+    # BAD: wrong-but-confident framework claims
+    _d(
+        "React's `useCallback` should wrap every callback function in your component. Without "
+        "it, every render creates a new function reference which causes all child components "
+        "to re-render. This is the #1 performance issue in React apps. Wrap all 12 callbacks "
+        "in this component with `useCallback` for a significant speedup.",
+        "bad"
+    ),
+    _d(
+        "The `@Transactional(readOnly = true)` annotation on this read method is unnecessary "
+        "overhead. Read operations don't need transactions because they can't corrupt data. "
+        "Removing it will reduce connection pool usage and improve throughput by ~15% based "
+        "on our load tests last quarter.",
+        "bad"
+    ),
+    _d(
+        "Instead of catching `NumberFormatException` here, use a regex to validate the string "
+        "is numeric before parsing. Regex validation is always faster than exception handling "
+        "because exceptions require stack unwinding which is O(n) in call depth. The regex "
+        "`^\\d+$` covers all valid integer inputs.",
+        "bad"
+    ),
+    _d(
+        "The `ConcurrentHashMap` here could be replaced with a regular `HashMap` wrapped in "
+        "`Collections.synchronizedMap()`. They have identical thread-safety guarantees but "
+        "`synchronizedMap` is simpler and has lower memory overhead because it doesn't need "
+        "the segment array that `ConcurrentHashMap` uses internally.",
+        "bad"
+    ),
+    _d(
+        "This `CompletableFuture.supplyAsync()` call doesn't specify an executor, so it uses "
+        "the common ForkJoinPool which has exactly Runtime.getRuntime().availableProcessors() "
+        "threads. But since this is an I/O operation, it will block a compute thread. Pass a "
+        "custom `Executors.newCachedThreadPool()` to avoid this. Cached thread pools create "
+        "unlimited threads on demand with zero overhead.",
+        "bad"
+    ),
+    # BAD: identifies issue + wrong fix
+    _d(
+        "The date parsing on line 8 will fail for dates like '2024-02-29' (leap year) because "
+        "you're using `LocalDate.parse` with a strict resolver. The fix is to use "
+        "`ResolverStyle.LENIENT` which automatically adjusts invalid dates (e.g., Feb 29 in a "
+        "non-leap year becomes Mar 1). This is the standard pattern for robust date handling.",
+        "bad"
+    ),
+    _d(
+        "Good catch on the null check, but instead of throwing `NullPointerException`, I'd "
+        "use `Optional.ofNullable(value).orElseThrow()`. This is more idiomatic Java and the "
+        "stack trace is cleaner because `Optional.orElseThrow()` throws `NoSuchElementException` "
+        "which is more descriptive than NPE.",
+        "bad"
+    ),
+    _d(
+        "The `synchronized(this)` block is a performance bottleneck. Replace it with a "
+        "`ReentrantLock` for better throughput. `ReentrantLock` is always faster than "
+        "`synchronized` because it uses CAS operations instead of OS-level mutex, and it "
+        "supports fairness which prevents thread starvation.",
+        "bad"
+    ),
+    _d(
+        "This recursion depth could be a problem. Java's default stack size is only 512KB "
+        "which limits recursion to about 500 frames. Increase the stack size to 8MB with "
+        "`-Xss8m` JVM flag. This is a common fix and has no downside since modern systems "
+        "have plenty of RAM.",
+        "bad"
+    ),
+    _d(
+        "The `equals()` method should use `instanceof` instead of `getClass()` for the type "
+        "check. `getClass()` breaks the Liskov Substitution Principle because subclasses won't "
+        "be considered equal to their parent class. Using `instanceof` is more flexible and is "
+        "the recommended approach in Effective Java.",
+        "bad"
+    ),
 ]
 
-# --- VALSET: 30 labeled code review examples (15 good, 15 bad) ---
+# --- VALSET: 70 labeled code review examples (35 good, 35 bad) ---
 # Heavy on borderline cases to test rubric discriminating power
 VALSET = [
     # ---- GOOD reviews (15) ----
@@ -636,6 +748,152 @@ VALSET = [
         "line 12. However, in practice this endpoint handles maybe 10 requests per minute "
         "so the window is tiny. I wouldn't bother fixing it — the locking overhead would "
         "outweigh the practically nonexistent risk. Leaving as-is is fine.",
+        "bad"
+    ),
+
+    # ---- ULTRA-HARD: context-dependent and judgment-heavy (20 more: 10 good, 10 bad) ----
+
+    # GOOD: identifies a real bug through careful reasoning
+    _d(
+        "The `hashCode()` override returns `name.hashCode()` but `equals()` compares both "
+        "`name` AND `age`. Two objects with the same name but different ages will hash to the "
+        "same bucket but not be equal — this violates the hashCode contract and will cause "
+        "silent data loss in HashMaps.",
+        "good"
+    ),
+    _d(
+        "The `Comparator` on line 8 does `return a.score - b.score` which overflows for large "
+        "negative values. With `a.score = Integer.MIN_VALUE` and `b.score = 1`, the subtraction "
+        "wraps to a positive number, reversing the sort order. Use `Integer.compare(a.score, b.score)`.",
+        "good"
+    ),
+    _d(
+        "The `@Transactional` annotation is on a private method. Spring's proxy-based AOP "
+        "cannot intercept private methods, so this transaction boundary is silently ignored. "
+        "Move the annotation to a public method or use AspectJ weaving.",
+        "good"
+    ),
+    _d(
+        "The CORS config allows `Access-Control-Allow-Origin: *` with `credentials: true`. "
+        "Browsers reject this combination — you can't use wildcard origin with credentials. "
+        "Either specify the exact allowed origins or remove credential support.",
+        "good"
+    ),
+    _d(
+        "The `Iterator.remove()` call inside `stream().forEach()` will throw "
+        "`ConcurrentModificationException`. Streams don't support structural modification of the "
+        "source during traversal. Use `Collection.removeIf()` instead.",
+        "good"
+    ),
+    _d(
+        "The regex `.*` in the route definition matches greedily across path segments. "
+        "A request to `/api/users/../admin/config` will match this route and bypass the auth "
+        "middleware. Use `[^/]*` to restrict matching to a single segment.",
+        "good"
+    ),
+    _d(
+        "`Double.NaN == Double.NaN` returns false in Java. The score filter on line 40 "
+        "silently drops all NaN scores instead of handling them. Use `Double.isNaN()` for the check.",
+        "good"
+    ),
+    _d(
+        "The enum `valueOf()` on line 15 throws `IllegalArgumentException` for unknown values. "
+        "Since the input comes from user-submitted JSON, any typo will crash the endpoint with a 500. "
+        "Use a lookup map with a default or catch the exception.",
+        "good"
+    ),
+    # GOOD: identifies a subtle correctness issue in test code
+    _d(
+        "This test mocks `clock.now()` to return a fixed time, but the production code calls "
+        "`Instant.now()` directly (not through the clock). The test passes by coincidence — "
+        "the mock is never invoked. Inject the `Clock` as a dependency for this to actually test "
+        "the time-dependent behavior.",
+        "good"
+    ),
+    _d(
+        "The `assertThat(result).contains('success')` assertion is checking the toString() of "
+        "the Response object, not the body. It passes because toString() includes the status, "
+        "which contains the string 'success'. Check `result.getBody()` instead.",
+        "good"
+    ),
+
+    # BAD: sounds like it identifies a bug but the analysis is wrong
+    _d(
+        "The `volatile` keyword on the `initialized` flag isn't sufficient for thread safety "
+        "here. You need a full `synchronized` block around the double-checked locking pattern "
+        "because `volatile` only guarantees visibility, not atomicity. Without `synchronized`, "
+        "two threads could both see `initialized = false` and initialize twice.",
+        "bad"
+    ),
+    _d(
+        "This recursive function has a stack depth of O(n) which means for n=100,000 you'll "
+        "get a StackOverflowError. But the real issue is that Java doesn't support tail-call "
+        "optimization, so even tail-recursive code will overflow. You need to rewrite this "
+        "as an iterative loop — there's no other option in Java.",
+        "bad"
+    ),
+    # BAD: correct observation wrapped in wrong conclusion
+    _d(
+        "The `StringBuilder` is being shared across threads without synchronization. However, "
+        "the fix isn't to add synchronization — that would be too slow. Instead, switch to "
+        "`StringBuffer`, which is the thread-safe version of `StringBuilder` and is designed "
+        "exactly for this use case. `StringBuffer` has no performance overhead compared to "
+        "`StringBuilder` because modern JVMs optimize the synchronization away.",
+        "bad"
+    ),
+    # BAD: identifies a theoretical problem that can't happen in this context
+    _d(
+        "The `ArrayList` isn't thread-safe. If another thread adds elements while this loop "
+        "iterates, you'll get a `ConcurrentModificationException`. Consider using "
+        "`CopyOnWriteArrayList` to avoid this. The overhead is minimal for small lists.",
+        "bad"
+    ),
+    # BAD: confidently recommends an anti-pattern
+    _d(
+        "Rather than throwing exceptions from this validation method, I'd recommend returning "
+        "null to indicate failure. The caller can then check for null and handle it appropriately. "
+        "Exceptions should only be used for truly exceptional cases, and invalid user input is "
+        "expected. Returning null is more performant and gives the caller more flexibility.",
+        "bad"
+    ),
+    # BAD: review of the review approach, not the code
+    _d(
+        "I appreciate that you added unit tests, but I think you should also add integration "
+        "tests, end-to-end tests, property-based tests, and mutation tests. Our testing pyramid "
+        "recommends a 70/20/10 split between unit/integration/e2e. Right now we're at maybe "
+        "80/10/10 for this module.",
+        "bad"
+    ),
+    # BAD: pedantic about something that doesn't matter
+    _d(
+        "The HTTP status code 201 (Created) is technically incorrect here because the resource "
+        "already exists — you're updating it, not creating it. Strictly per RFC 7231 section "
+        "6.3.2, 201 should only be returned when a new resource is created. The correct code "
+        "for an update is 200 (OK) or 204 (No Content). Please fix for REST compliance.",
+        "bad"
+    ),
+    # BAD: theoretically correct but practically irrelevant suggestion
+    _d(
+        "Using `Math.random()` for the shuffle algorithm introduces a subtle bias because "
+        "the PRNG period doesn't evenly divide the number of possible permutations for arrays "
+        "larger than ~2000 elements. For a truly uniform shuffle, use a cryptographic RNG. "
+        "The bias is approximately 1 in 2^53 for typical array sizes.",
+        "bad"
+    ),
+    # BAD: detailed comparison that misses the actual issue
+    _d(
+        "I compared the previous implementation with this refactored version and functionally "
+        "they're identical. The old code used a `for` loop while this uses `map` + `filter`. "
+        "The algorithmic complexity is the same: O(n) in both cases. The memory footprint is "
+        "slightly higher due to intermediate array creation, but negligible. No concerns.",
+        "bad"
+    ),
+    # BAD: suggests a fix that introduces a new bug
+    _d(
+        "The timezone handling is off. `new Date()` returns local time, but your API clients "
+        "expect UTC. Fix this by subtracting `getTimezoneOffset()` from the date: "
+        "`date.setMinutes(date.getMinutes() - date.getTimezoneOffset())`. This converts "
+        "local time to UTC without any library dependencies.",
         "bad"
     ),
 ]
