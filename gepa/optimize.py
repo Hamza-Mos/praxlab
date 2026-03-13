@@ -1256,6 +1256,7 @@ def main():
         reflection_lm=REFLECTION_LM,
         max_metric_calls=MAX_METRIC_CALLS,
         use_merge=True,
+        cache_evaluation=True,
         display_progress_bar=True,
     )
 
