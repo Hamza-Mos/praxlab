@@ -498,6 +498,146 @@ VALSET = [
         "error handling chain. This is a common anti-pattern in Node.js.",
         "bad"
     ),
+
+    # ---- ADVERSARIAL: extremely subtle borderline cases (20 more: 10 good, 10 bad) ----
+
+    # GOOD: correct analysis, terse/unusual style
+    _d(
+        "This will deadlock. `mutex.lock()` on line 10, then `other_mutex.lock()` on line 15. "
+        "But `processB` acquires them in the opposite order. Classic ABBA deadlock.",
+        "good"
+    ),
+    _d(
+        "The `toString()` override allocates a new StringBuilder on every call. This is on the "
+        "hot path (called once per log line, ~50k/sec). Pre-allocate or cache the result.",
+        "good"
+    ),
+    _d(
+        "The comparison `a == b` where both are `float` is unreliable for equality. Use "
+        "`abs(a - b) < epsilon` or `math.isclose(a, b)`.",
+        "good"
+    ),
+    _d(
+        "Storing user passwords in the session object means they persist in memory and could "
+        "be leaked in a heap dump. Clear the password field after authentication.",
+        "good"
+    ),
+    _d(
+        "The `catch` on line 22 catches `Throwable` which includes `OutOfMemoryError` and "
+        "`StackOverflowError`. Catching these will mask fatal JVM issues. Catch `Exception` "
+        "instead.",
+        "good"
+    ),
+    # GOOD: sounds like a complaint but identifies a real issue
+    _d(
+        "Why are we re-implementing Base64 encoding by hand? There are at least 3 bugs in this "
+        "implementation: it doesn't handle padding correctly, the index table is wrong for "
+        "characters 62-63, and it doesn't work with Unicode input. Use `btoa()` or `Buffer.from`.",
+        "good"
+    ),
+    _d(
+        "This entire retry mechanism is broken. The `catch` block sets `shouldRetry = true` but "
+        "the `while` condition checks `retryCount < MAX_RETRIES` — and `retryCount` is never "
+        "incremented. This will retry forever on any failure.",
+        "good"
+    ),
+    # GOOD: identifies issue through a question (but the question IS the issue)
+    _d(
+        "What happens when two users submit the same coupon code at the same time? I don't see "
+        "any locking on the `used_count` column. Both transactions will read the same count, "
+        "both will allow the coupon, and you'll exceed the usage limit.",
+        "good"
+    ),
+    _d(
+        "Is this intentional? The `fallthrough` on line 45 means case 'admin' also executes "
+        "case 'user' logic. An admin would get both permission sets applied, which contradicts "
+        "the permission model described in the ticket.",
+        "good"
+    ),
+    _d(
+        "Line 33: `response.headers['X-Request-Id']` — the header name is case-sensitive in "
+        "HTTP/2 and must be lowercase. This will return undefined in HTTP/2 environments. Use "
+        "`response.headers['x-request-id']`.",
+        "good"
+    ),
+
+    # BAD: sounds technical and specific but the recommendation is harmful
+    _d(
+        "The `immutable` flag on this Redux reducer state is unnecessary. JavaScript objects "
+        "are passed by reference, so mutations are cheap and efficient. Remove the immutability "
+        "library and mutate state directly in the reducer — this will simplify the code "
+        "significantly and improve performance by avoiding unnecessary object copies.",
+        "bad"
+    ),
+    _d(
+        "Instead of this async generator, you should load the entire 500MB CSV file into memory "
+        "first, then process it. Reading in chunks adds complexity and the OS page cache will "
+        "handle memory management for you. Simpler code is always better than premature "
+        "optimization for memory.",
+        "bad"
+    ),
+    # BAD: technically correct observation but not actionable / not a real issue
+    _d(
+        "I notice this function has a cyclomatic complexity of 12. According to the McCabe "
+        "threshold, anything above 10 should be refactored. However, I can see that each "
+        "branch handles a distinct case, so maybe it's fine. Just wanted to flag it for "
+        "awareness.",
+        "bad"
+    ),
+    _d(
+        "This code uses `let` inside a `for` loop, which creates a new binding per iteration. "
+        "In older JavaScript engines (pre-V8 6.0), this was slower than `var`. It's fine in "
+        "modern engines, but I thought I'd mention it for historical context.",
+        "bad"
+    ),
+    # BAD: mixture of correct and incorrect — net negative
+    _d(
+        "Two issues: (1) The SQL query on line 30 should use `COALESCE` instead of `IFNULL` "
+        "for cross-database compatibility — good point. (2) You should also wrap the entire "
+        "endpoint in a `synchronized` block to prevent race conditions, since HTTP requests "
+        "can arrive concurrently and corrupt the response object.",
+        "bad"
+    ),
+    # BAD: armchair architecture without identifying a problem
+    _d(
+        "Looking at the overall design, I think this would benefit from an event-driven "
+        "architecture with a message queue. The current synchronous request/response pattern "
+        "works but doesn't scale. We should consider RabbitMQ or Kafka for decoupling the "
+        "producer and consumer sides. This would also make it easier to add new consumers "
+        "in the future without modifying the producer.",
+        "bad"
+    ),
+    _d(
+        "Have you considered using the Strategy pattern here? The switch statement could be "
+        "replaced with a polymorphic dispatch table, where each case is a separate class "
+        "implementing a common interface. This would make the code more extensible and follow "
+        "the Open/Closed Principle from SOLID.",
+        "bad"
+    ),
+    # BAD: claims to have tested something but gives wrong conclusion
+    _d(
+        "I benchmarked `for...of` vs `forEach` on an array of 10,000 elements and `for...of` "
+        "was consistently 2x slower. The overhead comes from the iterator protocol — calling "
+        "`.next()` on each iteration creates a new object. You should replace the `for...of` "
+        "with `forEach` for better performance in this hot loop.",
+        "bad"
+    ),
+    # BAD: meta-commentary about the PR process, not the code
+    _d(
+        "This PR is quite large — 47 files changed. It would have been easier to review if "
+        "it were broken into smaller PRs, one per feature. For future reference, try to keep "
+        "PRs under 200 lines of diff. That said, I've reviewed everything and have no "
+        "blocking concerns with the actual code changes.",
+        "bad"
+    ),
+    # BAD: correct concern but recommends doing nothing
+    _d(
+        "Technically this has a race condition between the read on line 5 and the write on "
+        "line 12. However, in practice this endpoint handles maybe 10 requests per minute "
+        "so the window is tiny. I wouldn't bother fixing it — the locking overhead would "
+        "outweigh the practically nonexistent risk. Leaving as-is is fine.",
+        "bad"
+    ),
 ]
 
 # ============================================================
