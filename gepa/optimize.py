@@ -80,7 +80,7 @@ def _d(input, answer):
     """Create a data instance with required fields."""
     return {"input": input, "answer": answer, "additional_context": {}}
 
-# --- TRAINSET: 90 labeled code review examples (45 good, 45 bad) ---
+# --- TRAINSET: 100 labeled code review examples (50 good, 50 bad) ---
 # Includes borderline cases to break length/surface-level shortcuts
 TRAINSET = [
     # ---- GOOD reviews (35) ----
@@ -475,6 +475,76 @@ TRAINSET = [
         "check. `getClass()` breaks the Liskov Substitution Principle because subclasses won't "
         "be considered equal to their parent class. Using `instanceof` is more flexible and is "
         "the recommended approach in Effective Java.",
+        "bad"
+    ),
+
+    # ---- TRAINING: "sounds right but is wrong" pattern (5 good, 5 bad) ----
+    # GOOD: genuinely correct concerns about JVM/language internals
+    _d(
+        "The `String.intern()` call on every request adds to the JVM string pool which is "
+        "never garbage collected in older JVMs. With 1M unique strings per day, you'll slowly "
+        "leak memory in the PermGen space (Java 7) or Metaspace (Java 8+).",
+        "good"
+    ),
+    _d(
+        "The `ConcurrentHashMap.size()` call inside the if-check is not atomic with the "
+        "subsequent `put()`. Between the size check and the put, another thread could have "
+        "added an element, exceeding your limit. Use `compute()` or `computeIfAbsent()` for "
+        "atomic check-and-act.",
+        "good"
+    ),
+    _d(
+        "The `AtomicInteger.get()` followed by `compareAndSet()` on the next line is a "
+        "classic ABA problem. Another thread could change the value from A to B to A between "
+        "the get and the CAS, making your CAS succeed when it shouldn't.",
+        "good"
+    ),
+    _d(
+        "The `finalize()` method is being used for resource cleanup but finalization is "
+        "deprecated since Java 9 and unreliable — the JVM makes no guarantee about when or "
+        "if finalizers run. Use `try-with-resources` or `Cleaner` instead.",
+        "good"
+    ),
+    _d(
+        "Autoboxing `int` to `Integer` inside this tight loop allocates ~10M objects per "
+        "second. Use `IntStream` or primitive `int[]` instead of `List<Integer>` to avoid "
+        "the GC pressure that's causing the latency spikes in production.",
+        "good"
+    ),
+    # BAD: sounds technically right but is wrong or contextless
+    _d(
+        "The `volatile` keyword isn't enough for thread safety on the `singleton` field. "
+        "You need `synchronized` because `volatile` only provides visibility, not atomicity. "
+        "Without `synchronized`, the double-checked locking pattern is broken because the JVM "
+        "can reorder the object initialization and field assignment.",
+        "bad"
+    ),
+    _d(
+        "This tail-recursive function should be rewritten iteratively because Java, unlike "
+        "Scala, never performs tail-call optimization. There is literally no way to make "
+        "recursion safe in Java — every recursive call adds a stack frame, and the only "
+        "solution is to rewrite as a loop. No exceptions.",
+        "bad"
+    ),
+    _d(
+        "The HTTP 200 response code is technically wrong for this DELETE endpoint. According "
+        "to RFC 7231 section 6.3.1, 200 should only be used when the response includes a "
+        "representation of the action's result. Since this returns an empty body, you must "
+        "use 204 No Content. Using the wrong status code will break well-behaved REST clients.",
+        "bad"
+    ),
+    _d(
+        "The `LocalDate.parse('2024-02-29')` call will fail because Java's default strict "
+        "parsing mode rejects leap year dates. You need to use `ResolverStyle.SMART` to "
+        "handle leap years correctly. This is a common gotcha that causes production "
+        "failures every February 29th.",
+        "bad"
+    ),
+    _d(
+        "This code creates a new `SimpleDateFormat` on every call which is wasteful. Since "
+        "`SimpleDateFormat` is thread-safe, you should create a single static instance and "
+        "reuse it across all threads. This will reduce object allocation by 99% and "
+        "significantly improve GC behavior.",
         "bad"
     ),
 ]
