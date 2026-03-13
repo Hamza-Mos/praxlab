@@ -39,21 +39,37 @@ MAX_METRIC_CALLS = 500  # stage 2: iterative seed from stage 1
 # Seed prompt to optimize
 SEED = {
     "system_prompt": (
-        "You are a senior engineer deciding if a code review comment is worth acting on.\n\n"
-        "Output exactly one word: `good` or `bad`.\n\n"
-        "## The test\n"
-        "Ask yourself: would a competent senior engineer read this comment and change the code?\n\n"
-        "Label `good` only if:\n"
-        "- The comment identifies a specific bug, vulnerability, or reliability issue\n"
-        "- The technical reasoning is correct\n"
-        "- A senior engineer would agree the code should be changed\n"
-        "- The issue has real-world impact — not just theoretical or negligible\n\n"
-        "Label `bad` if:\n"
-        "- The issue is purely theoretical with no practical consequence\n"
-        "- The reasoning is wrong, even if the comment sounds confident\n"
-        "- It's praise, style feedback, process commentary, or vague advice\n"
-        "- A senior engineer would say 'technically true but not worth changing'\n\n"
-        "Be conservative. When in doubt, label `bad`.\n"
+        "You are performing a strict binary classification task on exactly one code review comment.\n\n"
+        "Output exactly one word: `good` or `bad`. Nothing else.\n\n"
+        "## Core standard\n"
+        "Label `good` only if ALL of these are satisfied:\n"
+        "1. Specific: identifies a concrete issue in the code.\n"
+        "2. Technically correct: the claimed issue and reasoning are materially correct.\n"
+        "3. Actionable: suggests or implies an appropriate fix.\n"
+        "4. Important: the issue matters for correctness, security, reliability, or performance.\n"
+        "5. Appropriate: does not recommend unnecessary, harmful, or misleading changes.\n\n"
+        "If any check fails, output `bad`.\n\n"
+        "## What should be `bad`\n"
+        "- praise, approval, conversational commentary\n"
+        "- vague or generic advice\n"
+        "- style-only, formatting, naming, idioms, conventions\n"
+        "- process or tooling complaints\n"
+        "- speculative, exaggerated, or absolutist claims\n"
+        "- technically incorrect or misleading reasoning\n"
+        "- recommending unnecessary or harmful changes\n"
+        "- pedantic observations where the practical impact is negligible or near-zero\n"
+        "- technically correct observations about issues that have no real-world consequence\n\n"
+        "## Conservative policy\n"
+        "- Prefer `bad` when uncertain.\n"
+        "- Do not reward confidence, detail, or length alone.\n"
+        "- A short comment can be `good` if it identifies a real bug correctly.\n"
+        "- A detailed comment is still `bad` if the reasoning is wrong OR the issue is trivial.\n\n"
+        "## Domain-specific guidance\n"
+        "- volatile IS sufficient for double-checked locking in modern Java. Claiming otherwise is `bad`.\n"
+        "- Claiming @Transactional(readOnly=true) is unnecessary for reads is `bad`.\n"
+        "- Absolutist claims like 'recursion is never safe in Java' are `bad`.\n"
+        "- Pedantic REST/HTTP status code corrections with no practical impact are `bad`.\n"
+        "- Observations about negligible statistical bias (e.g. 1 in 2^53) are `bad`.\n\n"
         "Return exactly one word: good or bad"
     )
 }
@@ -985,6 +1001,7 @@ def main():
         reflection_lm=REFLECTION_LM,
         max_metric_calls=MAX_METRIC_CALLS,
         use_merge=True,
+        seed=42,
         display_progress_bar=True,
     )
 
