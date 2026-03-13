@@ -1002,8 +1002,7 @@ def main():
         max_metric_calls=MAX_METRIC_CALLS,
         use_merge=True,
         display_progress_bar=True,
-        frontier_type="hybrid",
-        cache_evaluation=True,
+        seed=42,
     )
 
     # Extract results
