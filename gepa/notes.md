@@ -96,8 +96,9 @@ The single most impactful discovery across 90+ experiments: **replacing rules-on
 - seed=42 → worse optimum
 - Iterative seeding (evolved as new seed) → always fails
 
-### Model changes (all worse than nano)
-- gpt-4.1: 0.942, gpt-4.1-mini: 0.910, gpt-5-mini: N/A
+### Model changes (all worse than nano with rules-only seed)
+- gpt-4.1: 0.942, gpt-4.1-mini: 0.910, gpt-5-mini: N/A, gpt-5.4 (temp=1): 0.963
+- With few-shot seed: mini=0.984, full=0.980 (closer but nano still wins)
 
 ### Seed architecture experiments
 - **Decision-tree prompt**: 0.754 — nano can't follow sequential yes/no logic
@@ -124,4 +125,16 @@ The single most impactful discovery across 90+ experiments: **replacing rules-on
 - **Seed: 11-example few-shot with balanced good+bad borderline examples**
 
 ## Experiment Count
-95+ experiments tracked via lab CLI (h1-h135, e1-e134)
+100+ experiments tracked via lab CLI (h1-h137, e1-e136)
+
+## Timeline of Records
+| Date | Score | Method | Notes |
+|------|-------|--------|-------|
+| Early | ~0.900 | Initial seed + small val | Starting point |
+| Mid | 0.947 | Rules-only seed + expanded data + targeted training | Pre-breakthrough ceiling |
+| Mid | 0.968 | 6-example few-shot seed (e121) | First few-shot breakthrough |
+| Mid | 0.980 | 9-example few-shot seed (e122) | Perfectly deterministic |
+| Latest | **0.991** | 11-example few-shot seed (e123) | **Current best**, 40% perfect runs |
+
+## Conclusion
+The few-shot examples discovery is the dominant finding. GEPA was useful for exploring the search space and confirming that hand-crafted prompts are optimal, but the actual improvement came from prompt engineering (adding balanced good+bad examples). The rules + examples format is synergistic — neither works well alone. The 11-example prompt sits at a fragile optimum that cannot be modified without degradation.
