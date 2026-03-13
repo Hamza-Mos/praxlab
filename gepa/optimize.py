@@ -31,7 +31,7 @@ log = logging.getLogger(__name__)
 
 # Models
 TASK_LM = "openai/gpt-4.1-nano"        # best model for this task
-REFLECTION_LM = "openai/gpt-5.4"      # flagship model for better reflection
+REFLECTION_LM = "anthropic/claude-sonnet-4-6"  # different model family for reflection
 
 # Budget
 MAX_METRIC_CALLS = 500  # standard budget
