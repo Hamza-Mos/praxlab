@@ -34,17 +34,12 @@ TASK_LM = "openai/gpt-4.1-nano"        # weaker model to give GEPA more room
 REFLECTION_LM = "openai/gpt-5.4"      # flagship model for better reflection
 
 # Budget
-MAX_METRIC_CALLS = 100  # serious run
+MAX_METRIC_CALLS = 200  # more room for weak seed evolution
 
 # Seed prompt to optimize
 SEED = {
     "system_prompt": (
-        "You are evaluating the quality of a code review comment. "
-        "Read the code review below and classify it as either 'good' or 'bad'. "
-        "A good review identifies a real, actionable problem and is technically correct. "
-        "A bad review is vague, technically wrong, merely describes the code, or is a rubber stamp. "
-        "Note: a review can be long and detailed but still bad if the advice is incorrect. "
-        "A review can be short and still good if it pinpoints a real bug. "
+        "Classify the following code review comment as good or bad. "
         "Respond with exactly one word: good or bad"
     )
 }
