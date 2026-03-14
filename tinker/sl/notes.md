@@ -129,8 +129,30 @@
 - LoRA rank must be power of 2 (Tinker constraint)
 - Targeted traces: fix one problem, regress another (SFT is fragile)
 
+### 12. Self-Consistency Scaling (final, temp=0.5)
+| Samples | MV | Any Correct |
+|---------|-----|-------------|
+| 5 | **90%** (6/6 reproductions) | 94% |
+| 10 | 88% | 96% |
+| 20 | 90% | 96% |
+| 32 | **92%** | **96%** |
+
+### 13. The 5 Hard Problems (unsolvable at MV@5)
+- #12 Fibonacci sum: sometimes fixable with targeted data (fragile)
+- #14 Geometry/Asymptote: UNSOLVABLE (requires vision)
+- #28 Geometry/Asymptote: UNSOLVABLE (requires vision)
+- #42 Complex numbers on unit circle: consistently wrong
+- #48 Polynomial remainder: sometimes correct at MV@32
+
+### 14. Things That Didn't Help After 90%
+- 3-model ensemble (correlated errors, same architecture)
+- LoRA rank 16 (slightly worse, not enough capacity)
+- High-temp Claude traces (noise > diversity)
+- Targeted few-shot traces (fix one, break another)
+- MATH test set traces (same ceiling)
+- Short-only or long-only filtering (both worse)
+
 ## Open Questions
 1. Would SFT → RL sequential training exceed both alone?
 2. Does Qwen3.5-14B respond even better to SFT distillation?
-3. Can 3+ model ensemble push past 92%?
-4. Can self-distillation be fully automated (no human-generated seed data)?
+3. Can self-distillation be fully automated (no human seed data)?
