@@ -14,6 +14,7 @@ Dependencies: pip install tinker torch transformers
 import json
 import logging
 import math
+import os
 import random
 import sys
 import time
@@ -34,6 +35,7 @@ MAX_LENGTH = 2048                           # Max sequence length (prompt + resp
 N_EPOCHS = 4                                # Number of passes through the data
 SAVE_EVERY = 20                             # Checkpoint every N batches (0 = disabled)
 EVAL_SPLIT = 0.1                            # Fraction of data held out for eval
+RESUME_FROM = None                          # Tinker state path to resume from (e.g. "tinker://...weights/step_000020")
 
 # System prompt prepended to all examples (set to None to skip)
 SYSTEM_PROMPT = None
@@ -174,9 +176,31 @@ def main():
     # Setup Tinker clients
     logger.info("Initializing Tinker service client...")
     service_client = tinker.ServiceClient()
-    training_client = service_client.create_lora_training_client(
-        base_model=MODEL, rank=LORA_RANK
-    )
+
+    # Auto-resume: check for latest checkpoint or explicit RESUME_FROM
+    resume_path = RESUME_FROM
+    if resume_path is None and os.path.exists(".last_checkpoint"):
+        with open(".last_checkpoint") as f:
+            resume_path = f.read().strip()
+        if resume_path:
+            logger.info(f"Auto-resume: found .last_checkpoint → {resume_path}")
+
+    if resume_path:
+        logger.info(f"Resuming from checkpoint: {resume_path}")
+        training_client = service_client.create_training_client_from_state_with_optimizer(resume_path)
+        # Parse step number from checkpoint name to set global_step
+        import re as _re
+        step_match = _re.search(r'step_(\d+)', resume_path)
+        if step_match:
+            resume_step = int(step_match.group(1))
+            logger.info(f"Resuming from step {resume_step}")
+        else:
+            resume_step = 0
+    else:
+        training_client = service_client.create_lora_training_client(
+            base_model=MODEL, rank=LORA_RANK
+        )
+        resume_step = 0
     logger.info("Training client created.")
 
     # Get tokenizer
@@ -201,7 +225,7 @@ def main():
     # ========================================================================
     # TRAINING LOOP
     # ========================================================================
-    global_step = 0
+    global_step = resume_step
 
     for epoch in range(N_EPOCHS):
         logger.info(f"--- Epoch {epoch + 1}/{N_EPOCHS} ---")
@@ -211,13 +235,24 @@ def main():
         random.seed(42 + epoch)
         random.shuffle(shuffled_train)
 
+        # Compute the absolute step number for this epoch/batch
+        epoch_start_step = epoch * n_batches_per_epoch
+
         for batch_idx in range(n_batches_per_epoch):
+            abs_step = epoch_start_step + batch_idx
+            # Skip steps already completed (when resuming)
+            if abs_step < global_step:
+                continue
+
             t_start = time.time()
 
             # Checkpoint
             if SAVE_EVERY > 0 and global_step > 0 and global_step % SAVE_EVERY == 0:
                 state_path = training_client.save_state(name=f"step_{global_step:06d}").result()
                 logger.info(f"Checkpoint saved: {state_path}")
+                # Write .last_checkpoint for auto-resume
+                with open(".last_checkpoint", "w") as f:
+                    f.write(state_path)
 
             # Linear LR decay
             lr_mult = max(0.0, 1.0 - global_step / total_steps)
@@ -305,6 +340,9 @@ def main():
     logger.info(f"Final checkpoint (state): {state_path}")
     logger.info(f"Final checkpoint (sampler): {sampler_path}")
 
+    # Clean up auto-resume file on successful completion
+    if os.path.exists(".last_checkpoint"):
+        os.remove(".last_checkpoint")
     logger.info("Training completed.")
 
 
