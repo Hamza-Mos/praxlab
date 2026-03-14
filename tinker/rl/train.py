@@ -6,7 +6,9 @@ eval_prompts.jsonl, and the hyperparameters below. Based on tinker-cookbook's
 rl_loop.py pattern (https://github.com/thinking-machines-lab/tinker-cookbook).
 
 Run:   python train.py > run.log 2>&1
+Resume: python train.py --resume <checkpoint_path> > run.log 2>&1
 Check: grep '^eval_reward_mean:' run.log
+Inspect: python train.py --eval-only <checkpoint_path>
 
 Variable naming convention (from tinker-cookbook CONTRIBUTING.md):
     _P: Problem dimension (different prompts in a batch)
@@ -17,8 +19,10 @@ Variable naming convention (from tinker-cookbook CONTRIBUTING.md):
 Dependencies: pip install tinker torch transformers
 """
 
+import argparse
 import json
 import logging
+import random
 import sys
 import time
 from concurrent.futures import Future
@@ -56,6 +60,9 @@ FEW_SHOT = [
 # Without it, the model wastes tokens on <think> tags.
 SYSTEM_PROMPT = "Respond directly without any thinking or reasoning process."
 
+# Number of diverse sample completions to show in eval (from different prompts)
+N_EVAL_SAMPLES = 5
+
 # ============================================================================
 # FIXED — Do not modify unless you know what you're doing
 # ============================================================================
@@ -92,8 +99,15 @@ def build_model_input(tokenizer, prompt_text: str) -> types.ModelInput:
     messages.append({"role": "user", "content": prompt_text})
 
     token_ids = tokenizer.apply_chat_template(
-        messages, add_generation_prompt=True, tokenize=True
+        messages, add_generation_prompt=True, tokenize=True, return_dict=False,
     )
+    # Flatten nested lists from some tokenizers
+    if hasattr(token_ids, "input_ids"):
+        token_ids = token_ids.input_ids
+    elif isinstance(token_ids, dict):
+        token_ids = token_ids.get("input_ids", token_ids)
+    if token_ids and isinstance(token_ids[0], list):
+        token_ids = token_ids[0]
     return types.ModelInput(chunks=[types.EncodedTextChunk(tokens=token_ids)])
 
 
@@ -107,7 +121,8 @@ def run_eval(
     eval_rewards_P = []
     eval_all_one = 0
     eval_all_zero = 0
-    sample_completions = []
+    # Collect one (prompt, completion, reward) per eval problem for diverse sampling
+    per_problem_samples: list[tuple[str, str, float]] = []
 
     # Submit all eval sampling requests
     eval_futures: list[tuple[Future, dict]] = []
@@ -124,12 +139,16 @@ def run_eval(
     for future, item in eval_futures:
         result = future.result()
         rewards_G = []
+        first_completion = None
         for seq in result.sequences:
             text = tokenizer.decode(seq.tokens, skip_special_tokens=True)
             reward = compute_reward(text, item.get("ground_truth", ""))
             rewards_G.append(reward)
-            if len(sample_completions) < 3:
-                sample_completions.append((item["prompt"], text, reward))
+            if first_completion is None:
+                first_completion = (item["prompt"], text, reward)
+
+        if first_completion:
+            per_problem_samples.append(first_completion)
 
         mean_r = sum(rewards_G) / len(rewards_G)
         eval_rewards_P.append(mean_r)
@@ -142,6 +161,9 @@ def run_eval(
     eval_all_one_rate = eval_all_one / len(eval_prompts) if eval_prompts else 0.0
     eval_all_zero_rate = eval_all_zero / len(eval_prompts) if eval_prompts else 0.0
 
+    # Pick N_EVAL_SAMPLES diverse samples (different prompts, mix of pass/fail)
+    sample_completions = _pick_diverse_samples(per_problem_samples)
+
     return {
         "eval_reward_mean": eval_reward_mean,
         "eval_all_one_rate": eval_all_one_rate,
@@ -150,7 +172,71 @@ def run_eval(
     }
 
 
+def _pick_diverse_samples(
+    samples: list[tuple[str, str, float]],
+) -> list[tuple[str, str, float]]:
+    """Pick N_EVAL_SAMPLES from different prompts, mixing successes and failures."""
+    if len(samples) <= N_EVAL_SAMPLES:
+        return samples
+    passes = [s for s in samples if s[2] >= 1.0]
+    fails = [s for s in samples if s[2] < 1.0]
+    random.shuffle(passes)
+    random.shuffle(fails)
+    # Alternate fail/pass to show both behaviors
+    picked: list[tuple[str, str, float]] = []
+    fi, pi = 0, 0
+    while len(picked) < N_EVAL_SAMPLES:
+        if fi < len(fails):
+            picked.append(fails[fi]); fi += 1
+        if len(picked) < N_EVAL_SAMPLES and pi < len(passes):
+            picked.append(passes[pi]); pi += 1
+        if fi >= len(fails) and pi >= len(passes):
+            break
+    return picked
+
+
+def _build_stop_sequences(tokenizer) -> list[str]:
+    """Build stop sequences from tokenizer."""
+    stop_sequences = []
+    if hasattr(tokenizer, "eos_token") and tokenizer.eos_token:
+        stop_sequences.append(tokenizer.eos_token)
+    for stop_tok in ["<|im_end|>", "<|eot_id|>", "</s>"]:
+        if stop_tok not in stop_sequences:
+            stop_sequences.append(stop_tok)
+    return stop_sequences
+
+
+def _run_and_print_eval(sampling_client, tokenizer, eval_prompts, sampling_params):
+    """Run eval and print results in grep-parsable format."""
+    eval_results = run_eval(sampling_client, tokenizer, eval_prompts, sampling_params)
+    print(f"\neval_reward_mean: {eval_results['eval_reward_mean']:.6f}")
+    print(f"eval_all_one_rate: {eval_results['eval_all_one_rate']:.6f}")
+    print(f"eval_all_zero_rate: {eval_results['eval_all_zero_rate']:.6f}")
+    print(f"\n--- SAMPLE COMPLETIONS (read these to check for reward hacking) ---")
+    for prompt, completion, reward in eval_results["sample_completions"]:
+        print(f"PROMPT: {prompt}")
+        print(f"COMPLETION: {completion}")
+        print(f"REWARD: {reward}")
+        print("---")
+    return eval_results
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="GRPO Training Loop")
+    parser.add_argument(
+        "--resume", type=str, default="",
+        help="Tinker state checkpoint path to resume training from (e.g. tinker://...state/batch_000010)"
+    )
+    parser.add_argument(
+        "--eval-only", type=str, default="",
+        help="Tinker sampler checkpoint path — run eval only, no training"
+    )
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
+
     logger.info("=" * 60)
     logger.info("POSTTRAINER — GRPO Training Loop")
     logger.info("=" * 60)
@@ -158,6 +244,10 @@ def main():
     logger.info(f"LR: {LEARNING_RATE} | Batch: {BATCH_SIZE} | Group: {GROUP_SIZE}")
     logger.info(f"Max tokens: {MAX_TOKENS} | Temperature: {TEMPERATURE}")
     logger.info(f"Loss function: {LOSS_FN}")
+    if args.resume:
+        logger.info(f"RESUMING from: {args.resume}")
+    if args.eval_only:
+        logger.info(f"EVAL-ONLY from: {args.eval_only}")
 
     # Load data
     train_prompts = load_prompts("prompts.jsonl")
@@ -173,10 +263,31 @@ def main():
     # Setup Tinker clients
     logger.info("Initializing Tinker service client...")
     service_client = tinker.ServiceClient()
-    training_client = service_client.create_lora_training_client(
-        base_model=MODEL, rank=LORA_RANK
-    )
-    logger.info("Training client created.")
+
+    # --- EVAL-ONLY MODE ---
+    if args.eval_only:
+        logger.info("Running evaluation only...")
+        tokenizer = AutoTokenizer.from_pretrained(MODEL, trust_remote_code=True)
+        sampling_client = service_client.create_sampling_client(model_path=args.eval_only)
+        stop_sequences = _build_stop_sequences(tokenizer)
+        sampling_params = types.SamplingParams(
+            max_tokens=MAX_TOKENS, temperature=TEMPERATURE,
+            stop=stop_sequences if stop_sequences else None,
+        )
+        _run_and_print_eval(sampling_client, tokenizer, eval_prompts, sampling_params)
+        return
+
+    # --- CREATE OR RESUME TRAINING CLIENT ---
+    if args.resume:
+        training_client = service_client.create_training_client_from_state_with_optimizer(
+            args.resume
+        )
+        logger.info(f"Resumed training client from: {args.resume}")
+    else:
+        training_client = service_client.create_lora_training_client(
+            base_model=MODEL, rank=LORA_RANK
+        )
+        logger.info("Training client created (fresh).")
 
     # Get tokenizer
     logger.info(f"Loading tokenizer for {MODEL}...")
@@ -186,15 +297,7 @@ def main():
     adam_params = types.AdamParams(
         learning_rate=LEARNING_RATE, beta1=ADAM_BETA1, beta2=ADAM_BETA2, eps=ADAM_EPS
     )
-    # Build stop sequences from tokenizer (ensures model stops at EOS, not MAX_TOKENS)
-    stop_sequences = []
-    if hasattr(tokenizer, "eos_token") and tokenizer.eos_token:
-        stop_sequences.append(tokenizer.eos_token)
-    # Common chat template stop tokens
-    for stop_tok in ["<|im_end|>", "<|eot_id|>", "</s>"]:
-        if stop_tok not in stop_sequences:
-            stop_sequences.append(stop_tok)
-
+    stop_sequences = _build_stop_sequences(tokenizer)
     sampling_params = types.SamplingParams(
         max_tokens=MAX_TOKENS,
         temperature=TEMPERATURE,
@@ -362,26 +465,17 @@ def main():
     logger.info("=" * 60)
 
     sampling_client = training_client.save_weights_and_get_sampling_client()
-    eval_results = run_eval(sampling_client, tokenizer, eval_prompts, sampling_params)
+    _run_and_print_eval(sampling_client, tokenizer, eval_prompts, sampling_params)
 
-    # Grep-parsable results (the agent greps for these)
-    print(f"\neval_reward_mean: {eval_results['eval_reward_mean']:.6f}")
-    print(f"eval_all_one_rate: {eval_results['eval_all_one_rate']:.6f}")
-    print(f"eval_all_zero_rate: {eval_results['eval_all_zero_rate']:.6f}")
-
-    # Sample completions for quality check (agent MUST read these — see best practices #10)
-    print("\n--- SAMPLE COMPLETIONS (read these to check for reward hacking) ---")
-    for prompt, completion, reward in eval_results["sample_completions"]:
-        print(f"PROMPT: {prompt}")
-        print(f"COMPLETION: {completion}")
-        print(f"REWARD: {reward}")
-        print("---")
-
-    # Save final checkpoint
+    # Save final checkpoint (state = resume training, sampler = inference only)
     state_path = training_client.save_state(name="final").result()
     sampler_path = training_client.save_weights_for_sampler(name="final").result()
     logger.info(f"Final checkpoint (state): {state_path}")
     logger.info(f"Final checkpoint (sampler): {sampler_path}")
+
+    # Print resume command for next experiment
+    print(f"\nresume_checkpoint: {state_path}")
+    print(f"eval_checkpoint: {sampler_path}")
 
     logger.info("Training completed.")
 
