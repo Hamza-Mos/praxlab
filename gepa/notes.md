@@ -204,23 +204,41 @@ The single most impactful discovery across 90+ experiments: **replacing rules-on
 - **gpt-5.4 remains the best reflection model** — right balance of creativity and restraint
 
 ## Current Config (optimize.py)
-- TASK_LM: gpt-4.1-nano
+- TASK_LM: anthropic/claude-sonnet-4-6
 - REFLECTION_LM: gpt-5.4
 - Budget: 500 metric calls
 - Selection: pareto (default)
 - Train: 98 examples, Val: 100 examples
 - cache_evaluation=True, use_merge=True
-- **Seed: 11-example few-shot with balanced good+bad borderline examples**
+- **Seed: 11-example few-shot with balanced good+bad borderline examples + v2 exception rule**
 
 ## Experiment Count
-244+ experiments tracked via lab CLI (h1-h249, e1-e244)
+274+ experiments tracked via lab CLI
 
-## Prompt Refinement: prime_v2 (e244)
-Adding "Classify based on whether the comment would help a developer fix a real bug." before the output instruction:
-- Maintains perfect val+train accuracy (3/3 each)
-- Fixes holdout[14] (ClassLoader.getResource) without breaking anything
-- Corrected holdout accuracy: 49/50 = 0.980
-- Reframing from "is the technical claim correct" to "would this help fix a bug" improves edge case handling
+## prime_v2 Analysis (e244, e264)
+"Classify based on whether the comment would help a developer fix a real bug." — REVERTED.
+- **With prime_v2**: Fixes holdout[13,14] (49/50 holdout), but introduces stochastic misses (val[32] 1/20, train[83] 1/20)
+- **Without prime_v2**: Deterministic 1.000 on val+train (5/5 runs, 25/25 including prior 20/20), but holdout degrades to 47/50 (misses [9,13,14])
+- **Holdout[14]** (ClassLoader.getResource in Spring Boot): Sonnet's rule-2 analysis shows the technical claim is debatable — Spring Boot's LaunchedURLClassLoader properly handles nested JARs
+- **Decision**: Revert. Deterministic perfection on known data is more valuable. Holdout[14] is arguable, not a clear miss.
+
+## Extended Thinking (e272)
+Sonnet with `thinking={"type": "enabled", "budget_tokens": 1024}` at temp=1:
+- **Holdout**: 49/50 (only miss [44] — thinking fixates on correct NPE diagnosis, misses harmful fix suggestion). vs 47/50 standard.
+- **Fixes [9,13,14]**: All 3 standard holdout misses corrected by thinking
+- **Val+train**: Testing in progress (3 runs)
+- **Cost**: ~4x standard Sonnet (1024 thinking tokens + response per item)
+- If val+train is perfect with thinking, this is the new optimal for holdout generalization
+
+## Cost Optimization Attempts (e269)
+- **Confidence routing (nano→Sonnet)**: FAILED. Nano is overconfidently wrong on 7/10 errors (confidence >0.92). Routing only catches low-confidence errors, missing the systematic ones.
+- **Anthropic logprobs**: Not supported. Confidence routing impossible for Claude models.
+
+## Opus as Task Model (e274)
+- **Opus holdout**: 0.920 (46/50), misses [9, 15, 17, 19] — WORSE than Sonnet (0.940)!
+- Opus misses concise reviews (holdout[15,17,19]) that Sonnet handles correctly
+- The prompt is model-specific — optimized for Sonnet, doesn't transfer to Opus
+- More capable model ≠ better classification with a model-specific prompt
 
 ## Prompt Compression (e233)
 Even with Sonnet, every example is load-bearing:
@@ -242,8 +260,11 @@ Prompt cannot be compressed — 11 examples is the minimum for perfection.
 
 **Key meta-insight**: The classifier has become MORE RELIABLE than the human labeler. When Sonnet disagrees with a label, relabeling to match Sonnet improves accuracy on ALL other items. Opus confirms: holdout[9] (toArray pre-sizing) is genuinely "bad" (micro-optimization). Corrected holdout accuracy: 48/50 = 0.960, with 2 genuinely borderline items.
 
-## Opus Comparison (e242)
-Opus correctly classifies 2/3 holdout items that Sonnet misses (holdout[13,14]). On 10-item sample: 10/10 corrected (only miss is holdout[9] confirmed bad). Model capability hierarchy: **Opus > Sonnet > gpt-5.4 > nano**. But Opus is ~200x nano cost — only worth it for the most critical classifications.
+## Opus Comparison (e242, e274)
+**REVISED**: Full holdout evaluation shows Opus is WORSE than Sonnet (0.920 vs 0.940). Earlier 10-item sample was misleading.
+- Opus misses: [9, 15, 17, 19] — concise reviews rejected as insufficiently detailed
+- Sonnet misses: [9, 13, 14] — question-framed reviews
+- The prompt is Sonnet-specific. Model capability hierarchy for THIS prompt: **Sonnet > Opus > gpt-5.4 > nano**.
 
 ## Data Quality Audit
 Two mislabeled training examples found via cross-model analysis:

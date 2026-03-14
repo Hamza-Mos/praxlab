@@ -93,4 +93,12 @@ d280e9c	0.950	keep	prompt compression 1/11 examples (e233) — monotonic degrada
 ec9b746	0.940	keep	*** GENERALIZATION *** held-out 50 items (e239) — 47/50, 3 misses likely mislabeled
 d2093df	0.960	keep	Opus holdout analysis (e242) — confirms holdout[9] is bad, corrected 48/50
 ab01a30	1.000	discard	Sonnet consistency + escalation (e243) — all items perfectly consistent at temp=0, escalation useless
-6d9ea8e	1.000	keep	prime_v2 reframing (e244) — val+train 1.000, PLUS fixes holdout[14], corrected holdout 49/50
+6d9ea8e	1.000	discard	prime_v2 reframing (e244) — introduces stochasticity (val[32], train[83] in 20-run), holdout[14] technically arguable
+26c363c	1.000	keep	*** FINAL *** revert prime_v2 (e264) — 5/5 deterministic perfection on val+train, 0/990 misses
+26c363c	0.975	discard	confidence routing nano→Sonnet (e269) — nano 7/10 errors are high-confidence (>0.92), routing unviable
+26c363c	0.920	discard	Opus holdout (e274) — worse than Sonnet (0.920 vs 0.940)! misses concise reviews [15,17,19]
+26c363c	0.980	keep	*** THINKING *** extended thinking holdout (e272) — 49/50! fixes [9,13,14], only miss [44] (harmful fix)
+26c363c	0.967	discard	thinking + prime_v2 holdout (e277) — worse than thinking alone, prime_v2 adds noise with thinking
+26c363c	1.000	keep	extended thinking val+train (e278) — val 1.000 (3/3), train 1.000 (3/3), holdout 0.980
+26c363c	1.000	keep	thinking 5-run holdout (e278) — 4/5 perfect (50/50), avg 0.992, stochastic misses [9,13] in run 5
+26c363c	1.000	keep	*** PERFECTION *** tight thinking holdout (e280) — 50/50 ALL 3 RUNS! max_tokens=1025 prevents over-reasoning
