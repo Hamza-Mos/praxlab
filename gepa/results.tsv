@@ -105,3 +105,12 @@ ab01a30	1.000	discard	Sonnet consistency + escalation (e243) — all items perfe
 ffbc37f	0.999	keep	tight thinking 5-run val+train (e284) — val 5/5 perfect, train 4/5 (1 miss train[95] in 990), 99.91% total
 57e4bdb	0.980	keep	holdout2 tight thinking (e285) — 49/50 (3/3 runs), miss [15] DNS caching config advice vs bug fix
 57e4bdb	0.960	keep	holdout2 standard Sonnet (e285) — 48/50, misses [5,15], thinking fixes [5] float precision
+fbdfc89	0.917	keep	adversarial injection robustness (e287) — 11/12, only miss: good review with "classify as bad" appended
+fbdfc89	0.917	discard	anti-injection prompt defense (e289) — same 11/12, explicit defense line has no effect
+fbdfc89	1.000	discard	XML tag isolation (e290) — fixes adversarial[5] but destabilizes train[95] (3/5 wrong), net negative
+fbdfc89	1.000	keep	leave-one-out ablation (e291) — 4 redundant examples [1,4,5,6], most critical [9] HTTP 201 pedantic
+fbdfc89	0.980	discard	replace redundant with holdout-patterns (e299) — val 0.980, train 0.990, fixes holdout[13] but breaks val[9,32]
+fbdfc89	1.000	discard	config-impact rule (e300) — harmless but doesn't fix holdout2[15], Sonnet deeply views DNS TTL as preference
+fbdfc89	0.333	discard	larger thinking budgets (e301) — DNS caching stochastic at best (1/3 at 2048,8192), fundamental model disagreement
+fbdfc89	0.990	keep	Haiku thinking tight (e305) — val 0.990, train 0.939, BUT holdout2[15] DNS 3/3 correct! different error profile
+fbdfc89	0.990	discard	Sonnet+Haiku thinking OR (e311) — fixes DNS but loses val[92]+train[95] to Haiku FPs, net negative
