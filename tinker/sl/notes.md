@@ -99,9 +99,38 @@
 | e236 | 5ep 1748 traces | 0.125 | 80% | **94%** | **BEST MV** |
 | e238 | Self-distill r4 | 0.110 | 82% | 90% | keep |
 
+## Additional Findings (experiments 31-37)
+
+### 8. Temperature 0.5 is Optimal for Self-Consistency
+| temp | MV@5 | Any@5 |
+|------|------|-------|
+| 0.3 | 86% | 94% |
+| 0.4 | 86% | 94% |
+| **0.5** | **92%** | **96%** |
+| 0.7 | 88% | 96% |
+| 1.0 | 88% | 90% |
+
+### 9. Length Filtering Hurts
+- Short traces only: 80% (bad — removes complex reasoning)
+- Long traces only: 88% (ok but loses easy problem patterns)
+- Full mix: 90% (best — diverse lengths important)
+
+### 10. 2-Model Ensemble Breaks 90% Ceiling
+- Model A (seed 42): MV@5 = 90%
+- Model B (seed 123): MV@5 = 90%
+- **Ensemble MV@10 = 92%** (complementary errors)
+- Mirrors GEPA finding: cross-model ensembles break ceilings
+
+### 11. Misc
+- System prompt: neutral (model learns from data, not instructions)
+- EVAL_SPLIT 0.2: no improvement over 0.1
+- Weighted MV (logprobs): +2% marginal improvement
+- max_tokens 3072: +2% over 2048
+- LoRA rank must be power of 2 (Tinker constraint)
+- Targeted traces: fix one problem, regress another (SFT is fragile)
+
 ## Open Questions
 1. Would SFT → RL sequential training exceed both alone?
-2. Can weighted majority vote (logprob confidence) beat unweighted?
-3. Does Qwen3.5-14B respond even better to SFT distillation?
+2. Does Qwen3.5-14B respond even better to SFT distillation?
+3. Can 3+ model ensemble push past 92%?
 4. Can self-distillation be fully automated (no human-generated seed data)?
-5. What's the theoretical accuracy ceiling with unlimited self-distillation rounds?
