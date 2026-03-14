@@ -27,11 +27,11 @@ from transformers import AutoTokenizer
 # MUTABLE HYPERPARAMETERS — Agent modifies these
 # ============================================================================
 MODEL = "Qwen/Qwen3-8B"                    # Base model to fine-tune
-LORA_RANK = 32                              # LoRA rank
+LORA_RANK = 64                              # LoRA rank
 LEARNING_RATE = 5e-4                        # Starting LR (linear decay from this)
 BATCH_SIZE = 128                            # Examples per training batch
 MAX_LENGTH = 2048                           # Max sequence length (prompt + response)
-N_EPOCHS = 5                                # Number of passes through the data
+N_EPOCHS = 7                                # Number of passes through the data
 SAVE_EVERY = 20                             # Checkpoint every N batches (0 = disabled)
 EVAL_SPLIT = 0.1                            # Fraction of data held out for eval
 
@@ -219,8 +219,9 @@ def main():
                 state_path = training_client.save_state(name=f"step_{global_step:06d}").result()
                 logger.info(f"Checkpoint saved: {state_path}")
 
-            # Constant LR (no decay)
-            current_lr = LEARNING_RATE
+            # Linear LR decay
+            lr_mult = max(0.0, 1.0 - global_step / total_steps)
+            current_lr = LEARNING_RATE * lr_mult
             adam_params = types.AdamParams(
                 learning_rate=current_lr,
                 beta1=ADAM_BETA1,
