@@ -31,7 +31,7 @@ LORA_RANK = 32                              # LoRA rank
 LEARNING_RATE = 1e-4                        # Starting LR (linear decay from this)
 BATCH_SIZE = 128                            # Examples per training batch
 MAX_LENGTH = 1024                           # Max sequence length (prompt + response)
-N_EPOCHS = 2                                # Number of passes through the data
+N_EPOCHS = 5                                # Number of passes through the data
 SAVE_EVERY = 20                             # Checkpoint every N batches (0 = disabled)
 EVAL_SPLIT = 0.1                            # Fraction of data held out for eval
 
@@ -265,6 +265,12 @@ def main():
             print(f"train_step: {global_step}")
 
             global_step += 1
+
+        # Per-epoch eval to detect overfitting
+        if eval_datums:
+            epoch_eval = training_client.forward(eval_datums, loss_fn="cross_entropy").result()
+            epoch_eval_loss = compute_mean_nll(epoch_eval.loss_fn_outputs, eval_datums)
+            print(f"epoch_{epoch + 1}_eval_loss: {epoch_eval_loss:.6f}")
 
     # ========================================================================
     # EVALUATION
