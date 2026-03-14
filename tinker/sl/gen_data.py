@@ -12,7 +12,7 @@ import re
 from datasets import load_dataset
 
 # Config
-TARGET_TOTAL = 400
+TARGET_TOTAL = 800
 LEVEL_23_FRAC = 0.4  # 40% level 2-3, 60% level 4-5
 SEED = 42
 
