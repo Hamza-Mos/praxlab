@@ -41,9 +41,9 @@ BATCH_SIZE = 128                            # Prompts per training batch (>= 128
 GROUP_SIZE = 32                             # Doubled for better advantage estimates on hard problems
 MAX_TOKENS = 1024                           # Max response tokens — longer chains for hard MATH
 TEMPERATURE = 1.0                           # Sampling temperature (1.0 for GRPO, see rules.md)
-N_BATCHES = 100                             # Total training batches (100 is optimal, 200 overfits)
+N_BATCHES = 50                              # Early stopping — avoid over-training on limited data
 SAVE_EVERY = 10                             # Checkpoint every N batches (0 = disabled)
-LOSS_FN = "dro"                             # DRO: distributionally robust — handles variance
+LOSS_FN = "ppo"                             # PPO: proven best (DRO catastrophically fails)
 
 # Few-shot examples prepended to every prompt (set to [] for zero-shot)
 # EXPERIMENT: Zero scaffolding — no few-shot, no system prompt, no CoT instructions.
