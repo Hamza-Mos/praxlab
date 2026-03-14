@@ -1,17 +1,18 @@
 # Experiment Notes — Reasoning Trace Distillation
 
 ## Headline Result
-**SFT with Claude-distilled reasoning traces achieves 86-94% accuracy on MATH level 4-5 (majority vote), surpassing RL's 83.13%.** The model can solve 100% of problems given enough attempts (32 samples). Reasoning CAN be taught via SFT — it doesn't need to be discovered via RL.
+**SFT with self-distillation achieves 88% greedy accuracy on MATH level 4-5, surpassing RL's 83.13% by 5 points.** With majority vote, accuracy reaches 86-90%. The model can solve 92-100% of problems given enough attempts. Reasoning CAN be taught via SFT — it doesn't need to be discovered via RL.
 
 ---
 
 ## Three-Way Comparison (The Research Question)
-| Model | Method | Greedy | MV@5 | MV@16 | Cost |
-|-------|--------|--------|------|-------|------|
-| Qwen3-8B (base) | None | ~15% | — | — | $0 |
-| SFT (MATH solutions) | Human proofs | 42% | — | — | ~$1 |
-| **SFT (Claude traces)** | **Distilled** | **78-80%** | **84-88%** | **90-94%** | **~$8** |
-| RL (GRPO exp 7) | Emergent | 83.13% | — | — | ~$20 |
+| Model | Method | Greedy | MV@5 | Cost |
+|-------|--------|--------|------|------|
+| Qwen3-8B (base) | None | ~15% | — | $0 |
+| SFT (MATH solutions) | Human proofs | 42% | — | ~$1 |
+| SFT (Claude traces) | Distilled | 78-80% | 84-88% | ~$8 |
+| **SFT (self-distill)** | **Iterative** | **88%** | **86%** | **~$10** |
+| RL (GRPO exp 7) | Emergent | 83.13% | — | ~$20 |
 
 ## Self-Consistency Scaling
 | Samples | Majority Vote | Any Correct |
@@ -23,16 +24,17 @@
 
 ## Best Configuration
 ```
-Data:          548 verified Claude traces (Sonnet), <think> format
-               40/60 level 2-3/4-5 mix, verified against MATH ground truth
+Data:          1348 traces (548 Claude + 400 round-1 self-distill + 400 round-2)
+               <think> format, verified against MATH ground truth
 Model:         Qwen/Qwen3-8B
 LoRA rank:     32
 LR:            5e-4 (linear decay)
-N_EPOCHS:      7
+N_EPOCHS:      4 (early stopping at eval_loss minimum)
 MAX_LENGTH:    2048
 BATCH_SIZE:    128
 EVAL_SPLIT:    0.1
-eval_loss:     0.221
+eval_loss:     0.154
+greedy:        88% (temp=0)
 ```
 
 ## Key Findings (15 experiments)
@@ -67,6 +69,14 @@ eval_loss:     0.221
 ### 6. LoRA Rank: 32 Sufficient
 - Rank 64 = same eval_loss as 32, worse majority vote (overfitting)
 - Small dataset doesn't benefit from more capacity
+
+### 7. Self-Distillation is the Key Breakthrough
+- Model generates its own verified traces on NEW problems
+- Model's traces match its output distribution → easier to learn from
+- Two rounds: 548 Claude → +400 self-distill → +400 self-distill = 1348
+- eval_loss dropped 0.221 → 0.168 → 0.154 across rounds
+- Greedy accuracy: 78% → 82% → 88%
+- This is iterative self-improvement without RL!
 
 ## What Didn't Work
 | Approach | Why It Failed |

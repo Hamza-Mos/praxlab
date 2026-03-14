@@ -21,3 +21,5 @@ a6654d6	0.209	keep	e219: 1054 traces 5ep, accuracy 72%, underfitting
 ae4cb92	0.216	keep	e220: 1054 traces LR=3e-4 10ep, 78% greedy, MV16 88%, boxed 98%
 0808fe9	0.294	discard	e221: combined data HURTS, 76% greedy, MV 78%
 8552399	0.168	keep	e226: SELF-DISTILL\! Greedy 82% ≈ RL 83%, eval_loss 0.168 (best)
+b1a200d	0.159	keep	e232: 2nd self-distill 1348 traces, MV5 88%, eval_loss 0.159 best
+c4f64ef	0.154	keep	e234: GREEDY 88% BEATS RL 83%\! Self-distill + early stop = best
