@@ -45,6 +45,10 @@ N_BATCHES = 50                              # Early stopping — avoid over-trai
 SAVE_EVERY = 10                             # Checkpoint every N batches (0 = disabled)
 LOSS_FN = "ppo"                             # PPO: proven best (DRO catastrophically fails)
 
+# Resume from a saved checkpoint (set to None to start fresh)
+# Use a tinker:// path from a previous run's save_state() output
+RESUME_FROM = None                          # e.g. "tinker://session:train:0/weights/final"
+
 # Few-shot examples prepended to every prompt (set to [] for zero-shot)
 # EXPERIMENT: Zero scaffolding — no few-shot, no system prompt, no CoT instructions.
 # Testing if reasoning emerges from pure RL signal (DeepSeek-R1-Zero style).
@@ -171,10 +175,17 @@ def main():
     # Setup Tinker clients
     logger.info("Initializing Tinker service client...")
     service_client = tinker.ServiceClient()
-    training_client = service_client.create_lora_training_client(
-        base_model=MODEL, rank=LORA_RANK
-    )
-    logger.info("Training client created.")
+    if RESUME_FROM:
+        logger.info(f"Resuming from checkpoint: {RESUME_FROM}")
+        training_client = service_client.create_training_client_from_state_with_optimizer(
+            RESUME_FROM
+        )
+        logger.info("Training client resumed with optimizer state.")
+    else:
+        training_client = service_client.create_lora_training_client(
+            base_model=MODEL, rank=LORA_RANK
+        )
+        logger.info("Training client created (fresh).")
 
     # Get tokenizer
     logger.info(f"Loading tokenizer for {MODEL}...")
