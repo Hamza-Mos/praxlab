@@ -58,10 +58,11 @@ The single most impactful discovery across 90+ experiments: **replacing rules-on
 ### Single model with few-shot seed (11 examples)
 | Model | Avg | Range | Notes |
 |-------|-----|-------|-------|
-| gpt-4.1-nano | **0.991** | 0.980-1.000 | **Best single**. 40% perfect runs |
+| Claude Sonnet | **0.996** | 0.990-1.000 | 6/10 perfect. Only miss: val[55] (4/10). ~50x cost |
+| gpt-4.1-nano | 0.991 | 0.980-1.000 | **Best cheap single**. 40% perfect runs |
 | gpt-4.1-mini | 0.984 | 0.980-0.990 | +0.074 vs rules-only! |
-| Claude Haiku | 0.980 | 0.980-0.980 | Perfectly deterministic |
-| gpt-4.1 | 0.980 | 0.980-0.980 | Perfectly deterministic |
+| Claude Haiku | 0.980 | 0.980-0.980 | Perfectly deterministic. ~2x cost |
+| gpt-4.1 | 0.980 | 0.980-0.980 | Perfectly deterministic. ~10x cost |
 
 ### With rules-only seed (for reference)
 | Model | Avg | Range | Notes |
@@ -161,7 +162,7 @@ The single most impactful discovery across 90+ experiments: **replacing rules-on
 - **Seed: 11-example few-shot with balanced good+bad borderline examples**
 
 ## Experiment Count
-162+ experiments tracked via lab CLI (h1-h163, e1-e162)
+163+ experiments tracked via lab CLI (h1-h164, e1-e163)
 
 ## Timeline of Records
 | Date | Score | Method | Notes |

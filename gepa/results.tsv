@@ -48,4 +48,5 @@ ae7d78b	0.960	discard	interleaved rules+examples (e156) — distinct sections su
 57d06a6	0.950	discard	Claude Sonnet reflection (e160) — worse mutations than gpt-5.4
 99a2b4e	0.980	discard	Claude Opus reflection (e161) — verbose prompt bloat, degraded
 38fca80	0.980	keep	Claude Haiku as task model (e162) — deterministic, different error profile
-38fca80	0.999	keep	*** NEW RECORD *** nano+Haiku OR ensemble (e162) — 9/10 perfect!!!
+38fca80	0.999	keep	nano+Haiku OR ensemble initial (e162) — 9/10 perfect
+ea422bd	0.996	keep	Claude Sonnet single model (e163) — 6/10 perfect, val[55] only miss
