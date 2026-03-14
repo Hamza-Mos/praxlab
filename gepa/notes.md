@@ -290,8 +290,14 @@ Prompt cannot be compressed — 11 examples is the minimum for perfection.
 - **Adversarial test (e229)**: 13 items designed to probe decision boundaries → 13/13 correct (1 apparent miss was a labeling error).
 - **Nano v2 (e228)**: v2 exception rule slightly helps nano (val 0.992→0.998, train 0.871→0.898) but nano's fundamental capability gap remains.
 - **Cross-model audit (e207)**: Only 2 items with 2+ models disagreeing (both already addressed).
+- **Holdout2 (e285)**: 50 NEW items with novel patterns → tight thinking: 49/50 (3/3 deterministic), standard: 48/50. Persistent miss: holdout2[15] (DNS caching TTL) — Sonnet views as config advice, not bug fix. Defensible.
 
-**Key meta-insight**: The classifier has become MORE RELIABLE than the human labeler. When Sonnet disagrees with a label, relabeling to match Sonnet improves accuracy on ALL other items. Opus confirms: holdout[9] (toArray pre-sizing) is genuinely "bad" (micro-optimization). Corrected holdout accuracy: 48/50 = 0.960, with 2 genuinely borderline items.
+**Cross-holdout stats (100 items total):**
+- Tight thinking: 99/100 (holdout1 50/50 × 3/3, holdout2 49/50 × 3/3)
+- Standard Sonnet: 95/100 (holdout1 47/50, holdout2 48/50)
+- Thinking improves generalization by 4 items on 100 novel items
+
+**Key meta-insight**: The classifier has become MORE RELIABLE than the human labeler. When Sonnet disagrees with a label, relabeling to match Sonnet improves accuracy on ALL other items.
 
 ## Opus Comparison (e242, e274)
 **REVISED**: Full holdout evaluation shows Opus is WORSE than Sonnet (0.920 vs 0.940). Earlier 10-item sample was misleading.
