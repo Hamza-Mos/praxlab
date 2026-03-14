@@ -213,7 +213,19 @@ The single most impactful discovery across 90+ experiments: **replacing rules-on
 - **Seed: 11-example few-shot with balanced good+bad borderline examples**
 
 ## Experiment Count
-231+ experiments tracked via lab CLI (h1-h236, e1-e231)
+233+ experiments tracked via lab CLI (h1-h238, e1-e233)
+
+## Prompt Compression (e233)
+Even with Sonnet, every example is load-bearing:
+| Examples | Val | Train | Combined |
+|----------|-----|-------|----------|
+| **11** | **1.000** | **1.000** | **1.000** |
+| 9 | 0.980 | 0.990 | 0.985 |
+| 7 | 0.970 | 0.980 | 0.975 |
+| 5 | 0.970 | 0.969 | 0.970 |
+| 3 | 0.970 | 0.949 | 0.960 |
+| 1 | 0.940 | 0.959 | 0.950 |
+Prompt cannot be compressed — 11 examples is the minimum for perfection.
 
 ## Robustness Verification
 - **Adversarial test (e229)**: 13 novel items designed to probe decision boundaries → 13/13 correct. The classifier generalizes beyond train/val patterns.

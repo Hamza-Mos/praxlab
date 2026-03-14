@@ -88,3 +88,5 @@ ea422bd	0.996	keep	Claude Sonnet single model (e163) — 6/10 perfect, val[55] o
 36cbd00	1.000	keep	adversarial robustness (e229) — 13/13 novel items correct, classifier generalizes
 e6ca7da	0.939	discard	nano+Sonnet(v2) lazy OR (e230) — OR FP amplification, train 0.939
 7895e31	1.000	keep	GEPA with Sonnet TASK_LM (e231) — confirms seed optimal, all iterations skipped
+d280e9c	0.985	keep	prompt compression 9/11 examples (e233) — removing 2 examples drops to 0.985 combined
+d280e9c	0.950	keep	prompt compression 1/11 examples (e233) — monotonic degradation, 11 is minimum
