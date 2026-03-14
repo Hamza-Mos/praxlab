@@ -213,7 +213,14 @@ The single most impactful discovery across 90+ experiments: **replacing rules-on
 - **Seed: 11-example few-shot with balanced good+bad borderline examples**
 
 ## Experiment Count
-242+ experiments tracked via lab CLI (h1-h247, e1-e242)
+244+ experiments tracked via lab CLI (h1-h249, e1-e244)
+
+## Prompt Refinement: prime_v2 (e244)
+Adding "Classify based on whether the comment would help a developer fix a real bug." before the output instruction:
+- Maintains perfect val+train accuracy (3/3 each)
+- Fixes holdout[14] (ClassLoader.getResource) without breaking anything
+- Corrected holdout accuracy: 49/50 = 0.980
+- Reframing from "is the technical claim correct" to "would this help fix a bug" improves edge case handling
 
 ## Prompt Compression (e233)
 Even with Sonnet, every example is load-bearing:

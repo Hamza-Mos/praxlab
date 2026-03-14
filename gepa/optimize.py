@@ -51,6 +51,7 @@ MAX_METRIC_CALLS = 500  # standard budget
 SEED = {
     "system_prompt": (
         "You are performing a strict binary classification task on exactly one code review comment.\n\n"
+        "Classify based on whether the comment would help a developer fix a real bug.\n"
         "Output exactly one word: `good` or `bad`. Nothing else.\n\n"
         "## Rules\n"
         "Label `good` only if ALL of these are true:\n"
