@@ -311,13 +311,13 @@ TRAINSET = [
         "the code harder to scan visually. Please standardize.",
         "bad"
     ),
-    # BORDERLINE BAD: confidently wrong fix suggestion
+    # BORDERLINE GOOD: identifies a real stale closure bug with correct fix (relabeled from bad in e187)
     _d(
         "The `useEffect` dependency array is missing `count`. React's exhaustive-deps rule "
         "requires all variables used inside the effect to be listed. Add `count` to the array "
         "to fix the stale closure. Yes, this means the effect will re-run on every count change, "
         "but that's the correct React pattern.",
-        "bad"
+        "good"
     ),
     _d(
         "You should cache this database query result in a global variable so it's only fetched "

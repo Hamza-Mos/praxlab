@@ -50,3 +50,23 @@ ae7d78b	0.960	discard	interleaved rules+examples (e156) — distinct sections su
 38fca80	0.980	keep	Claude Haiku as task model (e162) — deterministic, different error profile
 38fca80	0.999	keep	nano+Haiku OR ensemble initial (e162) — 9/10 perfect
 ea422bd	0.996	keep	Claude Sonnet single model (e163) — 6/10 perfect, val[55] only miss
+87dd2d0	1.000	keep	lazy OR ensemble (e166) — 10/10 perfect, ~50% fewer Haiku calls (50.6/100 avg)
+87dd2d0	0.975	discard	Sonnet 12-example seed (e170) — fragile optimum is universal! degraded 0.996→0.975
+87dd2d0	0.708	discard	batch classification 5-per-call (e172) — catastrophic, nano can't batch
+87dd2d0	0.980	discard	gpt-4.1 error profile (e171) — FPs on val[22,69], same-family OR fails
+87dd2d0	0.982	discard	structured output JSON schema (e173) — shifts errors, doesn't improve
+87dd2d0	0.989	discard	dual-nano OR: standard+structured (e174) — val[63] persistent in both formats
+87dd2d0	0.970	discard	minimal Haiku prompt in lazy OR (e176) — Haiku needs full 11-example seed too
+87dd2d0	0.935	keep	*** GENERALIZATION *** lazy OR on trainset (e177) — overfit! 1.000 val vs 0.935 train
+87dd2d0	0.878	keep	*** GENERALIZATION *** nano-only on trainset (e177) — overfit! 0.991 val vs 0.878 train
+87dd2d0	0.956	discard	strengthened bad-list rules (e178) — val degraded, train unchanged
+87dd2d0	0.956	discard	generalized HTTP example (e179) — replacing example cascades failures, train unchanged
+87dd2d0	0.919	discard	GEPA on combined train+val (e180) — seed still optimal, GEPA can't close gap
+87dd2d0	0.963	keep	gpt-5.4 temp=1 (e181) — val 0.963, train 0.912, better generalization than nano
+87dd2d0	0.980	keep	*** GENERALIZATION BEST *** Sonnet combined=0.980 (e182) — val 0.996, train 0.963
+87dd2d0	0.980	keep	Sonnet+Haiku OR (e183) — val 1.000, train 0.959, same combined as Sonnet alone
+87dd2d0	0.935	discard	nano+Sonnet lazy OR (e184) — nano FPs propagate, worse than Sonnet alone on train
+87dd2d0	0.935	discard	Sonnet-first lazy OR (e185) — OR is symmetric, same result as nano-first
+87dd2d0	0.905	discard	nano AND Sonnet (e186) — AND unions FNs, worse than everything
+87dd2d0	0.980	keep	train[50] relabeled + Sonnet train (e187) — Sonnet train 0.980! combined 0.988
+87dd2d0	0.881	keep	train[50] relabeled + nano train (e187) — nano train 0.881, marginal improvement
