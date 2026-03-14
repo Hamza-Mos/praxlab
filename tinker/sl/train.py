@@ -33,7 +33,7 @@ BATCH_SIZE = 128                            # Examples per training batch
 MAX_LENGTH = 2048                           # Max sequence length (prompt + response)
 N_EPOCHS = 6                                # Number of passes through the data
 SAVE_EVERY = 20                             # Checkpoint every N batches (0 = disabled)
-EVAL_SPLIT = 0.1                            # Fraction of data held out for eval
+EVAL_SPLIT = 0.2                            # Fraction of data held out for eval
 
 # System prompt prepended to all examples (set to None to skip)
 SYSTEM_PROMPT = None
