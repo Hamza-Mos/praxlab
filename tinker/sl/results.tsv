@@ -61,3 +61,4 @@ eeac849	0.075	keep	e293: 10th self-distill 4027 traces, eval_loss 0.075\! MV 88%
 d9dbf03	0.084	discard	e295: 6ep overfits, MV 84%, optimal=2ep
 a58f91d	0.076	keep	e296: 2ep 4027 traces optimal eval_loss 0.076, MV 88%
 513231f	0.074	discard	e297: LR=2e-4 best eval_loss 0.074 but MV 84% — too smooth
+16555b6	0.081	keep	e298: 11th self-distill 4342, MV@5=90% (7th reproduction!)
