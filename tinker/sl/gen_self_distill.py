@@ -18,7 +18,7 @@ import random
 
 MODEL = "Qwen/Qwen3-8B"
 MAX_TOKENS = 2048
-TEMPERATURE = 0.7
+TEMPERATURE = 0.5  # Optimal temp from eval sweep
 NUM_SAMPLES = 5  # Sample 5 per problem, keep best verified
 TARGET_NEW = 400  # Target number of new verified traces
 
