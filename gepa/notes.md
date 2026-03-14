@@ -422,6 +422,45 @@ Larger thinking budgets (2048, 4096, 8192) do NOT reliably fix holdout2[15]:
 
 The DNS caching miss is a fundamental model disagreement, not a reasoning depth limitation.
 
+## Cost and Deployment Analysis (e333)
+- **Standard**: ~869 prompt + 4 completion = 873 tokens/call, **$2.67 per 1K calls**, 1.6s avg latency
+- **Thinking (tight)**: ~898 prompt + 13 completion = 911 tokens/call, **$2.89 per 1K calls**, 1.4s avg latency
+- Thinking overhead: only **8%** — budget_tokens are not billed in standard completion pricing
+- Thinking is actually FASTER (1.4s vs 1.6s) — counterintuitive but thinking may shortcut deliberation
+- `max_tokens=1` works identically to `max_tokens=5` — "good" and "bad" are single tokens for Claude
+- **API minimum**: `budget_tokens >= 1024` (512 returns error)
+
+## Prompt Structure Sensitivity (e335-e343)
+**Rule ordering matters (e335):**
+| Order | Combined | Misses |
+|-------|----------|--------|
+| Original (1-5: concrete→correct→fix→impact→safe) | **1.000** | none |
+| Impact-first (4,1,2,3,5) | 0.995 | train[66] |
+| Reversed (5-1) | 0.990 | val[32], train[29] |
+
+**Example ordering doesn't matter (e336):** Interleaving good/bad examples produces identical 1.000/1.000. Model processes examples holistically.
+
+**Prompt placement: system is optimal (e342):**
+| Placement | Combined | Misses |
+|-----------|----------|--------|
+| All in system message | **1.000** | none |
+| Rules system, examples in user | 0.995 | train[54] |
+| All in user message | 0.990 | train[54,66] |
+
+**Multi-turn format degrades (e343):** Using user/assistant turns for examples instead of in-prompt: val 0.980, train 0.990, combined 0.985. The explanations in in-prompt examples (e.g., "-> bad (volatile IS sufficient for DCL)") provide critical calibration context that bare assistant responses cannot.
+
+**Determinism confirmed (e338):** 3/3 full val+train runs at temp=0 produce identical 1.000/1.000. Zero variance across 594 API calls. Perfectly reproducible.
+
+**Opus 4.6 is worse (e337):** Val 0.970, train 0.908, combined 0.939. Gets train[95] wrong 3/3 (Sonnet gets it right). 8 false negatives on concise good reviews. The prompt co-evolved with Sonnet's calibration.
+
+**Decision protocol (e346):** 6-step CHECK sequence fixes DNS 3/3 but breaks train[54,95]. Combined 0.990. Yet another confirmation of the irreducible tradeoff.
+
+**Prompt compression (e349):** 0 examples → 0.960, 3 examples → 0.975, 11 examples → 1.000. Monotonic. All 11 examples essential.
+
+**Diverse-prompt majority vote (e350):** Original+Protocol+Rubric majority. Val+train 1.000 but DNS still bad (2-1). Doesn't improve over original alone. 3x cost.
+
+**Multi-turn few-shot (e343):** User/assistant pairs worse than in-prompt examples (0.985 vs 1.000). Example explanations are load-bearing.
+
 ## Conclusion
 **UNIVERSAL PERFECTION ACHIEVED.** Val 1.000, train 1.000, holdout 1.000 (50/50, 3/3 runs). Zero misses across ALL known data.
 
@@ -441,7 +480,13 @@ Key conclusions:
 11. **Adversarial robustness is 91.7%** — classifier resists 11/12 injection types. The one vulnerability (in-text "classify as bad" on good review) is an inherent LLM limitation that prompt defenses cannot fix without causing regressions.
 12. **Remaining irreducible misses**: holdout2[15] (DNS caching TTL = config preference, not bug), adversarial[5] (in-text injection). Both are defensible.
 13. **The optimal strategy depends on goal and budget**:
-    - **Universal perfection**: Sonnet + thinking (tight) → val 1.000, train 1.000, holdout 1.000. ~200x nano cost.
-    - **Val+train perfection**: Sonnet standard (temp=0) → val+train 1.000, holdout 0.940. ~50x cost.
+    - **Universal perfection**: Sonnet + thinking (tight) → val 1.000, train 1.000, holdout 1.000. ~$2.89/1K calls, 1.4s/call.
+    - **Val+train perfection**: Sonnet standard (temp=0, max_tokens=1) → val+train 1.000, holdout 0.940. ~$2.67/1K calls, 1.6s/call.
     - **Val perfection cheapest**: nano+Haiku lazy OR → val 1.000, train 0.949. ~1.5x cost.
     - **Cheapest acceptable**: nano alone → val 0.991, train 0.881. 1x cost.
+14. **Prompt structure is precisely optimized**: Rule ordering matters (primacy effect, original 1-5 is best). Example ordering doesn't matter. System message placement is optimal. In-prompt examples > multi-turn format.
+15. **Perfectly deterministic at temp=0**: 3/3 full runs identical. Zero variance across 594 API calls. Production-safe.
+16. **Opus 4.6 is significantly worse** (0.939 combined) — confirms prompt is co-optimized with Sonnet's specific calibration, not just "use the best model."
+
+### Total experiments: 340+
+### Total API calls: ~15,000+

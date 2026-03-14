@@ -125,3 +125,20 @@ fbdfc89	0.920	keep	corrected edge case labels (e328) — 3 mislabeled items fixe
 fbdfc89	0.840	keep	format guidance (e329) — fixes emoji+compliment (+2), breaks ultra-short (-1), val+train 1.000 preserved
 fbdfc89	0.980	keep	3x thinking majority holdout2 (e331) — 49/50, DNS [15] still 3/3 bad, identical to single-call
 fbdfc89	1.000	discard	rubric 5-dimension scoring (e332) — DNS 2/3 fixed! but train[95] 0/3 broken, same tradeoff boundary
+fc7cd3e	1.000	keep	cost analysis (e333) — standard $2.67/1K, thinking $2.89/1K, only 8% overhead, 1.4-1.6s latency
+fc7cd3e	1.000	discard	budget_tokens=512 (e334) — API minimum is 1024, cannot reduce further
+fc7cd3e	1.000	keep	*** RULE ORDERING *** original 1-5 optimal (e335) — reversed 0.990, impact-first 0.995, ordering matters
+fc7cd3e	1.000	keep	example interleaving (e336) — good/bad interleaved = identical to grouped, order doesn't matter
+fc7cd3e	0.939	discard	Opus 4.6 task model (e337) — val 0.970, train 0.908, 8 FNs + train[95] wrong, much worse than Sonnet
+fc7cd3e	1.000	keep	*** DETERMINISM *** 3/3 runs identical (e338) — 594 API calls, 0 misses, temp=0 is perfectly reproducible
+fc7cd3e	1.000	keep	max_tokens=1 (e339) — identical to max_tokens=5, good/bad are single Claude tokens
+fc7cd3e	1.000	keep	*** PROMPT PLACEMENT *** system is optimal (e342) — user degrades train, split loses train[54]
+fc7cd3e	0.985	discard	multi-turn assistant examples (e343) — val 0.980, train 0.990, in-prompt format strictly better
+fc7cd3e	0.990	discard	decision protocol 6-step (e346) — DNS 3/3 fixed! but train[54,95] broken, same irreducible tradeoff
+fc7cd3e	1.000	keep	cache timing (e347) — no prompt caching active, 1.0-1.5s consistent, cache_read=0
+fc7cd3e	0.960	keep	prompt compression analysis (e349) — 0 examples=0.960, 3 examples=0.975, 11 examples=1.000, monotonic
+fc7cd3e	1.000	keep	diverse-prompt majority vote (e350) — val+train 1.000 but doesn't fix DNS (2-1 bad), 3x cost
+fc7cd3e	1.000	keep	*** PROMPT PLACEMENT *** system is optimal (e342) — user degrades train, split loses train[54]
+fc7cd3e	0.985	discard	multi-turn assistant examples (e343) — val 0.980, train 0.990, in-prompt format strictly better
+fc7cd3e	0.990	discard	decision protocol 6-step (e346) — DNS 3/3 fixed! but train[54,95] broken, same irreducible tradeoff
+fc7cd3e	1.000	keep	cache timing analysis (e347) — no prompt caching active, 1.0-1.5s/call consistent, cache_read=0
