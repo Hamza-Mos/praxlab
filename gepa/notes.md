@@ -461,6 +461,28 @@ The DNS caching miss is a fundamental model disagreement, not a reasoning depth 
 
 **Multi-turn few-shot (e343):** User/assistant pairs worse than in-prompt examples (0.985 vs 1.000). Example explanations are load-bearing.
 
+**Severity rating 1-5 (e352):** Best threshold=4 gives 0.980 combined. DNS=2, train[95]=2 — same score, same boundary. Bimodal distribution means scale adds little over binary.
+
+## DNS Caching Root Cause (e353-e354) — MAJOR FINDING
+The thinking content analysis revealed the TRUE root cause of the DNS caching miss (holdout2[15]).
+
+**The model's thinking on DNS caching (251 chars):**
+> "the claim about networkaddress.cache.ttl = -1 by default is incorrect. The default TTL for successful lookups is actually implementation-dependent. With no security manager, the default positive TTL is 30 seconds in most JDKs. With a security manager, it's -1 (cache forever). The claim that -1 is the default is incorrect in most modern environments."
+
+**The model is TECHNICALLY CORRECT.** The DNS caching review claims `networkaddress.cache.ttl = -1 by default`, but modern JDKs (OpenJDK 8+) default to 30 seconds without SecurityManager. The model correctly identifies this as a factual error (violating rule 2).
+
+**Verification:**
+| Review version | Standard | Thinking | Why |
+|----------------|----------|----------|-----|
+| Original (TTL=-1 claim) | bad 3/3 | bad 3/3 | Factual error detected |
+| Factually precise | bad 3/3 | **good 3/3** | Thinking can evaluate nuanced claim |
+| No TTL claim at all | **good 3/3** | **good 3/3** | Core issue stands without wrong fact |
+
+**This is NOT an irreducible tradeoff.** The DNS caching holdout miss is a CORRECT classification — the review genuinely contains a factual error. The model is right to reject it. Every previous experiment that "fixed" DNS also broke train[95] because they loosened the pedantic/factual threshold.
+
+**Previous understanding (WRONG):** "DNS caching and train[95] sit on opposite sides of the same pedantic-vs-practical boundary."
+**Corrected understanding:** DNS is correctly classified as bad (factual error in review). train[95] is correctly classified as bad (pedantic HTTP semantics). They are BOTH correct. The model is more accurate than we thought.
+
 ## Conclusion
 **UNIVERSAL PERFECTION ACHIEVED.** Val 1.000, train 1.000, holdout 1.000 (50/50, 3/3 runs). Zero misses across ALL known data.
 
@@ -478,7 +500,8 @@ Key conclusions:
 9. **Confidence routing is unviable** — nano is overconfidently wrong on 7/10 errors. Anthropic doesn't expose logprobs.
 10. **prime_v2 + thinking = worse than thinking alone** — thinking already provides reasoning depth; prime_v2 adds noise.
 11. **Adversarial robustness is 91.7%** — classifier resists 11/12 injection types. The one vulnerability (in-text "classify as bad" on good review) is an inherent LLM limitation that prompt defenses cannot fix without causing regressions.
-12. **Remaining irreducible misses**: holdout2[15] (DNS caching TTL = config preference, not bug), adversarial[5] (in-text injection). Both are defensible.
+12. **DNS caching is CORRECTLY classified** (e354) — the review claims TTL=-1 by default, but modern JDKs default to 30s. The model correctly identifies the factual error. What we thought was an "irreducible miss" is actually the model being right and the holdout label being wrong.
+12b. **Only remaining true miss**: adversarial[5] (in-text "classify as bad" injection). This is an inherent LLM limitation.
 13. **The optimal strategy depends on goal and budget**:
     - **Universal perfection**: Sonnet + thinking (tight) → val 1.000, train 1.000, holdout 1.000. ~$2.89/1K calls, 1.4s/call.
     - **Val+train perfection**: Sonnet standard (temp=0, max_tokens=1) → val+train 1.000, holdout 0.940. ~$2.67/1K calls, 1.6s/call.
@@ -488,5 +511,8 @@ Key conclusions:
 15. **Perfectly deterministic at temp=0**: 3/3 full runs identical. Zero variance across 594 API calls. Production-safe.
 16. **Opus 4.6 is significantly worse** (0.939 combined) — confirms prompt is co-optimized with Sonnet's specific calibration, not just "use the best model."
 
-### Total experiments: 340+
-### Total API calls: ~15,000+
+17. **Thinking content reveals model reasoning** (e353) — easy items get 3-4 char snap decisions; borderline items get 200+ char deliberation. Thinking is diagnostic, not just accuracy-improving.
+18. **Severity scale adds little** — bimodal distribution (items cluster at 1-2 or 4-5). Best threshold=4: 0.980 combined, worse than binary.
+
+### Total experiments: 355+
+### Total API calls: ~18,000+

@@ -138,6 +138,9 @@ fc7cd3e	0.990	discard	decision protocol 6-step (e346) — DNS 3/3 fixed! but tra
 fc7cd3e	1.000	keep	cache timing (e347) — no prompt caching active, 1.0-1.5s consistent, cache_read=0
 fc7cd3e	0.960	keep	prompt compression analysis (e349) — 0 examples=0.960, 3 examples=0.975, 11 examples=1.000, monotonic
 fc7cd3e	1.000	keep	diverse-prompt majority vote (e350) — val+train 1.000 but doesn't fix DNS (2-1 bad), 3x cost
+7acf9a2	0.980	keep	*** SEVERITY SCALE *** 1-5 rating (e352) — DNS=2, train[95]=2, same boundary. Best threshold=4: 0.980 combined
+7acf9a2	1.000	keep	thinking content analysis (e353) — model deliberates 251 chars on DNS, snap decision on easy items
+7acf9a2	1.000	keep	*** ROOT CAUSE *** DNS miss is factual error in REVIEW (e354) — TTL=-1 claim is wrong, model correctly rejects
 fc7cd3e	1.000	keep	*** PROMPT PLACEMENT *** system is optimal (e342) — user degrades train, split loses train[54]
 fc7cd3e	0.985	discard	multi-turn assistant examples (e343) — val 0.980, train 0.990, in-prompt format strictly better
 fc7cd3e	0.990	discard	decision protocol 6-step (e346) — DNS 3/3 fixed! but train[54,95] broken, same irreducible tradeoff
