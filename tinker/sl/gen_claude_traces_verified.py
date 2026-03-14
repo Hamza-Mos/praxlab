@@ -25,7 +25,7 @@ if env_path.exists():
 
 MODEL = "claude-sonnet-4-20250514"
 MAX_CONCURRENT = 10
-TARGET = 800  # Generate more since we'll filter
+TARGET = 1500  # Generate more since we'll filter (~70% pass rate)
 
 SYSTEM_PROMPT = """You are a math tutor solving problems step by step. Your solutions must:
 
