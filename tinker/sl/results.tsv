@@ -25,3 +25,5 @@ b1a200d	0.159	keep	e232: 2nd self-distill 1348 traces, MV5 88%, eval_loss 0.159 
 c4f64ef	0.154	keep	e234: GREEDY 88% BEATS RL 83%\! Self-distill + early stop = best
 6846fa9	0.123	keep	e235: 3rd self-distill 1748 traces, MV5 90%\! any 98%\! greedy 78%
 1bd04f6	0.125	keep	e236: MV5 94%\!\! 1748 traces 5ep, new best, RL+11pts
+8ac13a0	0.110	keep	e238: 4th self-distill 2148, greedy 82%, MV 90%, loss 0.110
+e57bc51	0.109	keep	e240: 3ep 2148 traces, greedy 80%, MV 86%
