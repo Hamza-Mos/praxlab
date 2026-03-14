@@ -267,7 +267,7 @@ def main():
             logprobs_G_T: list[list[float]] = []
 
             for seq in sample_result.sequences:
-                if not seq.tokens:  # skip empty sequences (e.g., first token was stop)
+                if not seq.tokens or len(seq.tokens) < 2:  # skip empty/single-token sequences
                     continue
                 text = tokenizer.decode(seq.tokens, skip_special_tokens=True)
                 reward = compute_reward(text, ground_truth)
