@@ -17,32 +17,33 @@ Binary classification of code review comments (good/bad) using gpt-4.1-nano with
 ## Generalization Analysis (e177-e186)
 The prompt is **overfit to the val set**. Testing on the 98-item trainset (unseen during prompt optimization) reveals significant gaps:
 
-### Generalization Ranking (by combined accuracy on val+train, after train[50] relabel)
+### Generalization Ranking (by combined accuracy on val+train, after train[50]+train[82] relabels)
 | Config | Val | Train | Gap | Combined | Cost |
 |--------|-----|-------|-----|----------|------|
-| **Sonnet + modified rule 3** | **1.000** | **0.969** | **0.031** | **0.990** | ~50x |
-| Sonnet alone (original) | 0.996 | 0.980 | 0.016 | 0.988 | ~50x |
-| **Sonnet 3x self-consistency** | **1.000** | **0.969** | **0.031** | **0.985** | ~150x |
+| **Sonnet original** | **0.997** | **0.990** | **0.007** | **0.993** | ~50x |
+| Sonnet + modified rule 3 | 1.000 | 0.980 | 0.020 | 0.990 | ~50x |
+| Sonnet v2_security rule | 1.000 | 0.976 | 0.024 | 0.988 | ~50x |
+| Sonnet 3x self-consistency | 1.000 | 0.969 | 0.031 | 0.985 | ~150x |
 | 3-model majority (nano+Sonnet+Haiku) | 1.000 | 0.963 | 0.037 | 0.982 | ~52x |
 | nano+Haiku lazy OR | 1.000 | 0.949 | 0.051 | 0.975 | ~1.5x |
 | nano alone | 0.991 | 0.881 | 0.110 | 0.937 | 1x |
 
 **Optimal strategies by goal:**
-- **Best combined accuracy**: Sonnet + modified rule 3 (0.990 combined), ~50x cost. 10/10 PERFECT on val!
-- **Best combined at lower cost**: Sonnet alone original prompt (0.988 combined), ~50x cost
+- **Best combined accuracy**: Sonnet original prompt (0.993 combined), ~50x cost. Only misses train[25] (speculative framing) and val[55] intermittently.
+- **Val perfection**: Sonnet + modified rule 3 (1.000 val, 0.990 combined), ~50x cost. Deterministically perfect on val.
 - **Val perfection + cheapest**: nano+Haiku lazy OR (1.000 val, 0.975 combined), ~1.5x cost
 - **Cheapest acceptable**: nano alone (0.991 val, 0.937 combined), 1x cost
 
-**Key insight**: Modified rule 3 ("or identifies a likely bug by questioning the behavior") makes Sonnet deterministically perfect on val but DEGRADES nano. Each model needs its own prompt.
+**Key insight**: Data quality > prompt engineering. Relabeling train[82] (ABA problem on AtomicInteger is technically incorrect) improved combined more than any prompt modification.
 
 ### Key Generalization Insights
-1. **Sonnet generalizes best** — smallest gap (0.033), highest combined (0.980)
-2. **OR ensembles amplify false positives** — OR can only fix FNs, never FPs. Since train FPs are the bottleneck, OR can't beat Sonnet alone on train
-3. **AND unions false negatives** — worse than either model alone
-4. **OR order doesn't matter** — A or B = B or A. Only affects which calls are saved
-5. **Model capability correlates with generalization** — Sonnet > gpt-5.4 > nano. Smaller gap = better inherent calibration
-6. **Cost vs generalization tradeoff** — nano+Haiku (1.5x, 0.968 combined) vs Sonnet (50x, 0.980 combined). 12.5 combined accuracy points per 48.5x cost increase
-7. **Persistent train misses** — train[50,95] are FPs that ALL models share (useEffect deps, 404-for-empty-search). These may be mislabeled or genuinely ambiguous.
+1. **Data quality is #1 lever** — train[50] relabel: +0.010, train[82] relabel: +0.010. Together more impactful than any prompt change.
+2. **Sonnet generalizes best** — smallest gap (0.007 with relabels), highest combined (0.993)
+3. **OR ensembles amplify false positives** — OR can only fix FNs, never FPs. Since train FPs are the bottleneck, OR can't beat Sonnet alone on train
+4. **AND unions false negatives** — worse than either model alone
+5. **OR order doesn't matter** — A or B = B or A. Only affects which calls are saved
+6. **Model capability correlates with generalization** — Sonnet > gpt-5.4 > nano. Smaller gap = better inherent calibration
+7. **Remaining persistent miss** — train[25] (speculative recursion question) is the ONLY consistent miss for Sonnet original. Genuinely ambiguous: valid concern but uncertain framing.
 
 ### Root Cause
 The seed's few-shot examples calibrate well for val items but don't generalize to all variations of the same patterns. E.g., the HTTP pedantic example catches val's version but misses train's (different RFC sections/status codes). This is fundamental to few-shot learning — examples teach specific decision boundaries, not general principles.
@@ -215,7 +216,14 @@ The single most impactful discovery across 90+ experiments: **replacing rules-on
 - **Seed: 11-example few-shot with balanced good+bad borderline examples**
 
 ## Experiment Count
-198+ experiments tracked via lab CLI (h1-h202, e1-e198)
+206+ experiments tracked via lab CLI (h1-h210, e1-e206)
+
+## Data Quality Audit
+Two mislabeled training examples found via cross-model analysis:
+1. **train[50]** (e187): useEffect stale closure was labeled "bad" — actually "good" (all models agree). Relabeled.
+2. **train[82]** (e206): ABA problem on AtomicInteger was labeled "good" — actually "bad". Sonnet correctly explains: ABA is a pointer-identity problem, not a value problem. For AtomicInteger, get/CAS is the standard Java pattern and ABA is irrelevant because the value IS the state. Relabeled.
+3. **train[25]**: Remains genuinely ambiguous — question-framed recursion concern. Valid bug identification but speculative language triggers "speculative claims" bad-list. Kept as "good" but is the sole persistent Sonnet miss.
+4. **train[95]**: HTTP 404 for empty search — genuinely borderline between pedantic and practical. Kept as "bad" per seed prompt HTTP example precedent.
 
 ## Timeline of Records
 | Date | Score | Method | Notes |

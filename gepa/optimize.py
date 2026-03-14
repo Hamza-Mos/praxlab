@@ -514,11 +514,12 @@ TRAINSET = [
         "atomic check-and-act.",
         "good"
     ),
+    # BORDERLINE BAD: ABA doesn't apply to AtomicInteger — value IS the state, not a pointer (relabeled from good in e206)
     _d(
         "The `AtomicInteger.get()` followed by `compareAndSet()` on the next line is a "
         "classic ABA problem. Another thread could change the value from A to B to A between "
         "the get and the CAS, making your CAS succeed when it shouldn't.",
-        "good"
+        "bad"
     ),
     _d(
         "The `finalize()` method is being used for resource cleanup but finalization is "
