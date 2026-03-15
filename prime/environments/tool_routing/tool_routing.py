@@ -549,10 +549,19 @@ async def correctness(completion, answer) -> float:
     return 0.0
 
 
-async def efficiency(completion) -> float:
-    """Reward efficiency: 1/sqrt(n_tool_calls). Fewer calls = higher reward."""
+async def efficiency(completion, info) -> float:
+    """Reward efficiency relative to optimal call count for this question type."""
+    import json
     n_calls = sum(1 for m in completion if m.get("role") == "tool")
-    return 1.0 / math.sqrt(max(1, n_calls))
+    try:
+        meta = json.loads(info) if isinstance(info, str) else info
+        optimal = meta.get("optimal_calls", 1)
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        optimal = 1
+    if n_calls <= optimal:
+        return 1.0
+    excess = n_calls - optimal
+    return max(0.0, 1.0 - excess / (optimal + 2))
 
 
 async def tool_call_count(completion) -> float:
