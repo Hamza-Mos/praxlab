@@ -38,16 +38,16 @@ MODEL = "Qwen/Qwen3-8B"                    # Base model to fine-tune
 LORA_RANK = 32                              # LoRA rank (32 = cookbook default)
 LEARNING_RATE = 4e-5                        # Proven optimal LR
 BATCH_SIZE = 128                            # Prompts per training batch (>= 128, see rules.md)
-GROUP_SIZE = 8                              # G=8 for better advantage estimates (G=4 → 96% skip rate)
+GROUP_SIZE = 16                             # G=16 for 82% non-uniform groups at 90%+ success rate
 MAX_TOKENS = 4096                           # Proven sweet spot for reasoning chains
 TEMPERATURE = 1.0                           # Sampling temperature (1.0 for GRPO, see rules.md)
-N_BATCHES = 75                              # More batches for larger dataset (500 prompts)
+N_BATCHES = 50                              # Standard count, G=16 is compute-heavy
 SAVE_EVERY = 10                             # Checkpoint every N batches (0 = disabled)
 LOSS_FN = "ppo"                             # PPO: proven best (DRO catastrophically fails)
 
 # Resume from a saved checkpoint (set to None to start fresh)
 # Use a tinker:// path from a previous run's save_state() output
-RESUME_FROM = "tinker://eea66d14-9b39-5766-b2ce-87f30bc3a56f:train:0/weights/final"  # SFT checkpoint
+RESUME_FROM = None                          # Fresh start
 
 # Few-shot examples prepended to every prompt (set to [] for zero-shot)
 # EXPERIMENT: Zero scaffolding — no few-shot, no system prompt, no CoT instructions.
