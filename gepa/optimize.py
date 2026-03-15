@@ -1,13 +1,14 @@
 """GEPA co-evolution: system prompt + evaluation rubric.
 
 Co-evolves TWO text artifacts simultaneously using GEPA multi-module optimization:
-  1. system_prompt — instructs the task LM to solve problems step by step
-  2. evaluation_rubric — instructs the evaluator LM to score responses (without
+  1. system_prompt — instructs the task LM to solve AIME-level math problems
+  2. evaluation_rubric — instructs the evaluator LM to score solutions (without
      seeing the reference answer, forcing it to develop genuine quality criteria)
 
-Scoring: 60% correctness (answer matches reference) + 40% rubric calibration
-(rubric score agrees with ground truth). This rewards both better answers AND
-more accurate evaluation.
+Multi-objective scoring via GEPA's Pareto optimization:
+  - generation_quality: does the model get the right answer?
+  - rubric_calibration: does the rubric agree with ground truth?
+Both objectives contribute to the Pareto frontier.
 
 Usage:
     python optimize.py > run.log 2>&1
@@ -43,64 +44,68 @@ litellm.suppress_debug_info = True
 # CONFIGURATION (agent modifies these)
 # ============================================================
 
-TASK_LM = "openai/gpt-4.1-nano"
-EVALUATOR_LM = "openai/gpt-4.1-mini"
-REFLECTION_LM = "anthropic/claude-sonnet-4-6"
+# SOTA models — cross-family to avoid self-evaluation bias
+TASK_LM = "anthropic/claude-sonnet-4-6"       # generates solutions
+EVALUATOR_LM = "openai/gpt-5.4"              # applies the rubric
+REFLECTION_LM = "anthropic/claude-opus-4-6"   # proposes improvements (strongest)
 
 MAX_METRIC_CALLS = 50
 
 SEED = {
     "system_prompt": (
-        "You are a helpful problem-solving assistant. "
-        "Think through problems step by step, showing your reasoning. "
-        "Always end with your final answer on a new line starting with 'ANSWER:'"
+        "You are an expert mathematician solving competition-level problems. "
+        "Think through each problem carefully and systematically. "
+        "Show your complete reasoning step by step. "
+        "Always end with your final numerical answer on a new line starting with 'ANSWER:' "
+        "followed by just the number (integer). For example: ANSWER: 42"
     ),
     "evaluation_rubric": (
-        "You are an evaluation assistant. Given a question and a response, "
-        "score the response quality on a scale of 0.0 to 1.0.\n"
+        "You are a mathematics evaluation expert. Given a math problem and a "
+        "proposed solution, assess the solution quality on a scale of 0.0 to 1.0.\n"
         "Consider:\n"
-        "- Correctness: Does the response arrive at the right answer?\n"
-        "- Reasoning: Is the reasoning clear and sound?\n"
-        "- Completeness: Does it address all parts of the question?\n"
+        "- Mathematical correctness: Are the calculations and logic sound?\n"
+        "- Reasoning completeness: Are all steps justified?\n"
+        "- Answer validity: Does the final answer make sense given the problem?\n"
         "Respond with ONLY a single number between 0.0 and 1.0."
     ),
 }
 
 # ============================================================
-# DATA (agent modifies these)
+# DATA — AIME-level problems (hard enough for SOTA models to fail)
 # ============================================================
+# All answers are integers 0-999 (AIME format)
 
 def _d(q, a):
-    return {"input": q, "answer": a, "additional_context": {}}
+    return {"input": q, "answer": str(a), "additional_context": {}}
 
-# Competition-level math: AMC/AIME difficulty, multi-step reasoning, combinatorics
 TRAINSET = [
-    _d("How many integers between 1 and 1000 (inclusive) are divisible by both 3 and 7 but not by 5?", "38"),
-    _d("A 5-digit number is formed using the digits 1, 2, 3, 4, 5 without repetition. What is the probability that the number is odd? Express as a fraction.", "3/5"),
-    _d("In how many ways can 8 people be seated around a circular table?", "5040"),
-    _d("Find the remainder when 2^100 is divided by 7.", "2"),
-    _d("A box contains 6 red, 4 blue, and 5 green marbles. If 3 marbles are drawn without replacement, what is the probability that all 3 are the same color? Express as a fraction.", "34/455"),
-    _d("The sum of the first n positive integers is 325. What is n?", "25"),
-    _d("If log base 2 of x plus log base 2 of (x-2) equals 3, what is x?", "4"),
-    _d("A triangle has sides of length 5, 12, and 13. What is its area?", "30"),
-    _d("How many 4-letter codes can be formed using the letters A, B, C, D, E if repetition is allowed and the code must start with a vowel?", "250"),
-    _d("Find the value of the infinite series: 1/2 + 1/4 + 1/8 + 1/16 + ... Express as a whole number or fraction.", "1"),
-    _d("A fair coin is flipped 6 times. What is the probability of getting exactly 3 heads? Express as a fraction.", "5/16"),
-    _d("What is the greatest common divisor of 252 and 198?", "18"),
-    _d("In a class of 40 students, 25 play soccer, 20 play basketball, and 5 play neither. How many students play both sports?", "10"),
-    _d("If f(x) = 3x^2 - 2x + 1, what is f(f(1))?", "7"),
-    _d("A ladder 10 meters long leans against a wall. The base is 6 meters from the wall. How high up the wall does the ladder reach?", "8"),
+    # Number theory
+    _d("Find the number of positive integers n less than or equal to 100 such that n^2 - 1 is divisible by 24.", 16),
+    _d("Find the remainder when 3^2024 is divided by 100.", 81),
+    _d("How many positive integers n satisfy both n | 720 and gcd(n, 30) = 6?", 4),
+    # Combinatorics
+    _d("A committee of 5 is to be formed from 6 men and 4 women. In how many ways can this be done if the committee must contain at least 2 women?", 186),
+    _d("In how many ways can 12 identical balls be distributed into 4 distinct boxes such that each box contains at least 2 balls?", 10),
+    _d("How many 6-digit positive integers have their digits in strictly increasing order?", 84),
+    # Algebra
+    _d("If x and y are positive reals with x + y = 10 and x^2 + y^2 = 58, find xy.", 21),
+    _d("Find the sum of all real solutions to the equation |2x - 5| + |x + 3| = 10.", 4),
+    # Geometry
+    _d("In triangle ABC, AB = 13, BC = 14, and CA = 15. Find the area of triangle ABC.", 84),
+    _d("A circle is inscribed in a right triangle with legs 5 and 12. What is the radius of the inscribed circle?", 2),
+    # Probability
+    _d("Three distinct numbers are chosen at random from {1, 2, 3, ..., 10}. What is the probability that the sum of the three numbers is divisible by 3? Express as a percentage rounded to the nearest integer.", 33),
+    # Series
+    _d("Find the value of the sum: 1*2 + 2*3 + 3*4 + ... + 99*100.", 333300),
 ]
 
 VALSET = [
-    _d("How many distinct prime factors does 2310 have?", "5"),
-    _d("If the product of two consecutive positive integers is 306, what is the smaller integer?", "17"),
-    _d("Three cards are drawn from a standard 52-card deck without replacement. What is the probability that all three are aces? Express as a fraction.", "1/5525"),
-    _d("Find the sum of all positive divisors of 28.", "56"),
-    _d("A geometric sequence has first term 3 and common ratio 2. What is the sum of the first 8 terms?", "765"),
-    _d("How many trailing zeros does 25! have?", "6"),
-    _d("Two trains leave stations 300 miles apart heading toward each other. One travels at 50 mph, the other at 70 mph. After how many hours do they meet? Express as a fraction.", "5/2"),
-    _d("What is the number of diagonals in a convex polygon with 12 sides?", "54"),
+    _d("Find the number of ordered pairs (a, b) of positive integers such that a + b = 100 and lcm(a, b) = 180.", 0),
+    _d("How many 4-digit palindromes are divisible by 3?", 30),
+    _d("Find the last three digits of 7^999.", 343),
+    _d("In how many ways can you tile a 2×10 board with 1×2 dominoes?", 89),
+    _d("If a, b, c are roots of x^3 - 6x^2 + 11x - 6 = 0, find a^2 + b^2 + c^2.", 14),
+    _d("A bag has 5 red and 7 blue balls. Balls are drawn one at a time without replacement until 2 red balls have been drawn. What is the expected number of draws? Express as a fraction's numerator if the fraction in lowest terms is p/q. Give p.", 22),
 ]
 
 # ============================================================
@@ -113,8 +118,12 @@ def extract_number(text):
     m = re.search(r'ANSWER:\s*\$?\s*([\d,./]+)', text, re.IGNORECASE)
     if m:
         return _norm(m.group(1))
+    # Look for boxed answer (LaTeX)
+    m = re.search(r'\\boxed\{(\d+)\}', text)
+    if m:
+        return _norm(m.group(1))
     # Fall back to last number in text
-    nums = re.findall(r'[\d,./]+', text)
+    nums = re.findall(r'\b\d+\b', text)
     if nums:
         return _norm(nums[-1])
     return None
@@ -172,17 +181,18 @@ def extract_score(text):
 # ============================================================
 
 class CoEvolutionAdapter(GEPAAdapter):
-    """Co-evolves system_prompt and evaluation_rubric."""
+    """Co-evolves system_prompt and evaluation_rubric with multi-objective scoring."""
 
     def evaluate(self, batch, candidate, capture_traces=False):
         system_prompt = candidate["system_prompt"]
         rubric = candidate["evaluation_rubric"]
 
         outputs, scores = [], []
+        objective_scores = []
         trajectories = [] if capture_traces else None
 
         for item in batch:
-            # Step 1: Generate response using system_prompt
+            # Step 1: Generate solution using system_prompt
             try:
                 gen_resp = litellm.completion(
                     model=TASK_LM,
@@ -191,21 +201,21 @@ class CoEvolutionAdapter(GEPAAdapter):
                         {"role": "user", "content": item["input"]},
                     ],
                     temperature=0.7,
-                    max_tokens=1024,
+                    max_tokens=2048,
                 )
                 generated = gen_resp.choices[0].message.content
             except Exception as e:
                 generated = f"[Generation error: {e}]"
 
-            # Step 2: Evaluate with rubric (NO reference answer — rubric must judge independently)
+            # Step 2: Evaluate with rubric (NO reference answer)
             try:
                 eval_resp = litellm.completion(
                     model=EVALUATOR_LM,
                     messages=[
                         {"role": "system", "content": rubric},
                         {"role": "user", "content": (
-                            f"Question: {item['input']}\n\n"
-                            f"Response to evaluate:\n{generated}\n\n"
+                            f"Problem: {item['input']}\n\n"
+                            f"Proposed solution:\n{generated}\n\n"
                             f"Score (0.0 to 1.0):"
                         )},
                     ],
@@ -219,12 +229,17 @@ class CoEvolutionAdapter(GEPAAdapter):
             # Step 3: Ground truth check
             gt = check_answer(generated, item["answer"])
 
-            # Hybrid score: correctness + rubric calibration
+            # Multi-objective scoring
             calibration = 1.0 - abs(rubric_score - gt)
+            # Combined score for GEPA's primary metric
             score = 0.6 * gt + 0.4 * calibration
 
             outputs.append({"generated": generated, "rubric_score": rubric_score, "gt": gt})
             scores.append(score)
+            objective_scores.append({
+                "generation_quality": gt,
+                "rubric_calibration": calibration,
+            })
 
             if capture_traces:
                 trajectories.append({
@@ -234,14 +249,19 @@ class CoEvolutionAdapter(GEPAAdapter):
                     "rubric_score": rubric_score,
                     "gt": gt,
                     "feedback": (
-                        f"Ground truth: {'CORRECT' if gt else 'INCORRECT'}. "
+                        f"Ground truth: {'CORRECT' if gt else 'INCORRECT'} (answer={item['answer']}). "
                         f"Rubric scored {rubric_score:.2f}. "
                         f"Calibration: {calibration:.2f}. "
                         f"Final score: {score:.2f}"
                     ),
                 })
 
-        return EvaluationBatch(outputs=outputs, scores=scores, trajectories=trajectories)
+        return EvaluationBatch(
+            outputs=outputs,
+            scores=scores,
+            trajectories=trajectories,
+            objective_scores=objective_scores,
+        )
 
     def make_reflective_dataset(self, candidate, eval_batch, components_to_update):
         reflective_data = {}
@@ -250,7 +270,7 @@ class CoEvolutionAdapter(GEPAAdapter):
             for traj in eval_batch.trajectories:
                 if comp == "system_prompt":
                     examples.append({
-                        "Inputs": f"Question: {traj['input']}",
+                        "Inputs": f"Problem: {traj['input']}",
                         "Generated Outputs": traj["generated"],
                         "Feedback": (
                             f"Expected answer: {traj['reference']}. "
@@ -260,12 +280,13 @@ class CoEvolutionAdapter(GEPAAdapter):
                 elif comp == "evaluation_rubric":
                     examples.append({
                         "Inputs": (
-                            f"Question: {traj['input']}\n"
-                            f"Generated response: {traj['generated']}"
+                            f"Problem: {traj['input']}\n"
+                            f"Proposed solution: {traj['generated']}"
                         ),
                         "Generated Outputs": f"Score: {traj['rubric_score']:.2f}",
                         "Feedback": (
-                            f"Ground truth: {'CORRECT' if traj['gt'] else 'INCORRECT'}. "
+                            f"Ground truth: {'CORRECT' if traj['gt'] else 'INCORRECT'} "
+                            f"(answer={traj['reference']}). "
                             f"Rubric gave {traj['rubric_score']:.2f}, "
                             f"ideal would be {traj['gt']:.1f}. "
                             f"Error: {abs(traj['rubric_score'] - traj['gt']):.2f}"
@@ -300,7 +321,8 @@ def main():
         max_metric_calls=MAX_METRIC_CALLS,
         module_selector="round_robin",
         candidate_selection_strategy="pareto",
-        frontier_type="instance",
+        frontier_type="hybrid",
+        use_merge=True,
         display_progress_bar=True,
     )
 
@@ -317,10 +339,16 @@ def main():
     print(f"best_prompt: {json.dumps(best)}")
 
     log.info(f"Val score: {val_score}")
-    log.info(f"Best system_prompt: {best.get('system_prompt', '')[:200]}")
-    log.info(f"Best rubric: {best.get('evaluation_rubric', '')[:200]}")
+    log.info(f"Best system_prompt: {best.get('system_prompt', '')[:300]}")
+    log.info(f"Best rubric: {best.get('evaluation_rubric', '')[:300]}")
     log.info(f"Candidates explored: {len(result.candidates)}")
     log.info(f"Total metric calls: {result.total_metric_calls}")
+
+    # Log per-objective scores if available
+    if result.val_aggregate_subscores and best_idx < len(result.val_aggregate_subscores):
+        subs = result.val_aggregate_subscores[best_idx]
+        log.info(f"Generation quality: {subs.get('generation_quality', 'N/A')}")
+        log.info(f"Rubric calibration: {subs.get('rubric_calibration', 'N/A')}")
 
 
 if __name__ == "__main__":
