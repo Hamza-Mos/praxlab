@@ -45,11 +45,13 @@ export TINKER_API_KEY="your-key-here"
 - Do not install new packages. Only use tinker, torch, and transformers.
 
 ### Before Your First Experiment
-1. **Create an experiment branch** — NEVER work on main/master directly:
+1. **Create a worktree for your experiment** — NEVER work on main/master directly:
    ```bash
-   git checkout -b experiment/<short-task-description>
+   REPO=$(git rev-parse --show-toplevel)
+   git worktree add "$REPO/../<experiment-name>" -b experiment/<experiment-name>
+   cd "$REPO/../<experiment-name>/tinker/sl"
    ```
-   All commits, reverts, and mutations happen on this branch. Main stays clean as the starter template.
+   Each worktree is an isolated copy — multiple experiments can run in parallel in separate terminals. Main stays clean as the starter template.
 2. Read this entire program.md
 3. Read the task description in Section 1
 4. Source or generate appropriate training data for `data.jsonl`

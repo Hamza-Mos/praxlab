@@ -22,7 +22,7 @@ Each directory is a self-contained workspace with its own `program.md` (agent in
 4. **Launch an agent** from the directory: `cd <directory> && claude -p "Read program.md, then begin."`
 
 The agent will:
-- Create an experiment branch (main stays clean as the starter template)
+- Create a git worktree for the experiment (main stays clean as the starter template)
 - Build the training setup from your task description
 - Form hypotheses with causal mechanisms before each experiment
 - Run experiments, confirm/refute mechanisms after each result

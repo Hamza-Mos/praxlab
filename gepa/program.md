@@ -17,7 +17,13 @@ Autonomous prompt optimization using [GEPA](https://github.com/gepa-ai/gepa) (Ge
 
 ## 2. Setup
 
-1. **Create an experiment branch**: `git checkout -b experiment/<short-description>`
+1. **Create a worktree for your experiment** — NEVER work on main/master directly:
+   ```bash
+   REPO=$(git rev-parse --show-toplevel)
+   git worktree add "$REPO/../<experiment-name>" -b experiment/<experiment-name>
+   cd "$REPO/../<experiment-name>/gepa"
+   ```
+   Each worktree is an isolated copy — multiple experiments can run in parallel in separate terminals. Main stays clean as the starter template.
 2. **Read the files**:
    - `optimize.py` — the script you modify (models, data, seed prompt, budget)
 3. **Set API key**: `export OPENAI_API_KEY=...` (or `ANTHROPIC_API_KEY`)

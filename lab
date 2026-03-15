@@ -14,12 +14,26 @@ Usage (from any leaf directory):
 import argparse
 import json
 import sqlite3
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
 # ── Paths ──
 
-HARNESS_DIR = Path(__file__).resolve().parent
+def _main_repo_root():
+    """Find the main repo root via git, so DB is shared across worktrees."""
+    try:
+        common = subprocess.check_output(
+            ["git", "rev-parse", "--git-common-dir"],
+            cwd=Path(__file__).resolve().parent,
+            stderr=subprocess.DEVNULL,
+        ).decode().strip()
+        # --git-common-dir returns the .git dir (or main repo's .git for worktrees)
+        return Path(common).resolve().parent
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return Path(__file__).resolve().parent
+
+HARNESS_DIR = _main_repo_root()
 DB_PATH = HARNESS_DIR / "data" / "experiments.db"
 
 SCHEMA = """
@@ -70,6 +84,8 @@ def _get_db():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(str(DB_PATH))
     db.row_factory = sqlite3.Row
+    db.execute("PRAGMA journal_mode = WAL")
+    db.execute("PRAGMA busy_timeout = 5000")
     db.execute("PRAGMA foreign_keys = ON")
     db.executescript(SCHEMA)
     return db
@@ -85,6 +101,7 @@ def _next_id(db, table, prefix):
 def cmd_hypothesis(args):
     """Register what you're testing and WHY."""
     db = _get_db()
+    db.execute("BEGIN IMMEDIATE")
     hid = _next_id(db, "hypotheses", "h")
     db.execute(
         "INSERT INTO hypotheses (id, title, mechanism, status, created_at) VALUES (?,?,?,?,?)",
@@ -98,6 +115,7 @@ def cmd_hypothesis(args):
 def cmd_experiment(args):
     """Log an experiment before running it."""
     db = _get_db()
+    db.execute("BEGIN IMMEDIATE")
     task_id = _task_id()
     eid = _next_id(db, "experiments", "e")
     db.execute(
@@ -113,6 +131,7 @@ def cmd_experiment(args):
 def cmd_result(args):
     """Log what happened after running."""
     db = _get_db()
+    db.execute("BEGIN IMMEDIATE")
     metrics = json.loads(args.metrics) if args.metrics else {}
 
     mech_val = None
