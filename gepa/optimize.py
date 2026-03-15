@@ -42,7 +42,7 @@ TASK_LM = "anthropic/claude-sonnet-4-6"       # generates analyses
 EVALUATOR_LM = "openai/gpt-5.4"              # applies both rubrics
 REFLECTION_LM = "anthropic/claude-opus-4-6"   # proposes improvements
 
-MAX_METRIC_CALLS = 500
+MAX_METRIC_CALLS = 800
 
 # Fixed expert rubric — multi-criteria for fine-grained ground truth (never evolved)
 EXPERT_RUBRIC = (
