@@ -36,12 +36,12 @@ from reward import compute_reward
 # ============================================================================
 MODEL = "Qwen/Qwen3-8B"                    # Base model to fine-tune
 LORA_RANK = 32                              # LoRA rank (32 = cookbook default)
-LEARNING_RATE = 4e-5                        # Optimal LR (2e-5 too slow, 6e-5 too fast)
+LEARNING_RATE = 4e-5                        # Proven optimal LR
 BATCH_SIZE = 128                            # Prompts per training batch (>= 128, see rules.md)
-GROUP_SIZE = 4                              # Reduced to keep compute neutral with 8192-token sequences
-MAX_TOKENS = 8192                           # Even longer chains for hardest competition math
+GROUP_SIZE = 8                              # G=8 for better advantage estimates (G=4 → 96% skip rate)
+MAX_TOKENS = 4096                           # Proven sweet spot for reasoning chains
 TEMPERATURE = 1.0                           # Sampling temperature (1.0 for GRPO, see rules.md)
-N_BATCHES = 50                              # Standard count, compute-heavy at 8192 tokens
+N_BATCHES = 75                              # More batches for larger dataset (500 prompts)
 SAVE_EVERY = 10                             # Checkpoint every N batches (0 = disabled)
 LOSS_FN = "ppo"                             # PPO: proven best (DRO catastrophically fails)
 
