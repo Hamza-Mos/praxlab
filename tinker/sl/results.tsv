@@ -87,3 +87,4 @@ e9e549f	na	keep	greedy(4096tok)=80%, boxed=94%, same as 2048
 684de2c	0.094	keep	e385: seed 123, MV@5 avg 94.7%, MV@16=94%, seed-robust
 41b8410	na	keep	e386: 2-seed ensemble MV@10=94% MV@16=96%, same as single model
 f27ed0b	0.096	keep	e393: canonical run, MV@5 89%, MV@16 94%, checkpoint saved for SFT→RL
+66d519f	0.097	keep	e403: LR=6.5e-4, MV@5 avg 93%, flat peak 6.0-6.5e-4
