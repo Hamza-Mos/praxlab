@@ -236,8 +236,8 @@ The optimal config walks a razor's edge: rough enough for diversity, smooth enou
 
 ## Experiment Count
 - **Session 1**: 67 experiments (e192-e322), established 90% MV ceiling
-- **Session 2**: 12 experiments (e364-e393), pushed to 94% MV via LR=6e-4
-- **Total**: 79 experiments
+- **Session 2**: 19 experiments (e364-e408), pushed to 94% MV via LR=6e-4, launched SFT→RL
+- **Total**: 86 experiments (85 SFT + 1 SFT→RL)
 
 ## ANSWERED: SFT → RL Sequential Training
 **Marginal improvement only.** SFT model already too strong for standard RL problems.
