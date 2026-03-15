@@ -420,6 +420,72 @@ def _make_arithmetic(rng, n):
     return questions
 
 
+def _make_conversions(rng, n):
+    """Generate conversion questions programmatically."""
+    templates = [
+        ("fahrenheit", "celsius", "degrees Fahrenheit", "Celsius", -40, 212),
+        ("celsius", "fahrenheit", "degrees Celsius", "Fahrenheit", -40, 100),
+        ("miles", "kilometers", "miles", "kilometers", 1, 500),
+        ("kilometers", "miles", "kilometers", "miles", 1, 500),
+        ("pounds", "kilograms", "pounds", "kilograms", 1, 500),
+        ("kilograms", "pounds", "kilograms", "pounds", 1, 500),
+        ("feet", "meters", "feet", "meters", 1, 1000),
+        ("meters", "feet", "meters", "feet", 1, 1000),
+        ("inches", "centimeters", "inches", "centimeters", 1, 100),
+        ("gallons", "liters", "gallons", "liters", 1, 50),
+        ("ounces", "grams", "ounces", "grams", 1, 100),
+        ("yards", "meters", "yards", "meters", 1, 1000),
+        ("acres", "hectares", "acres", "hectares", 1, 500),
+    ]
+    questions = []
+    for _ in range(n):
+        from_u, to_u, from_label, to_label, lo, hi = rng.choice(templates)
+        val = round(rng.uniform(lo, hi), 1)
+        if val == int(val):
+            val = int(val)
+        key = (from_u, to_u)
+        if key in UNIT_CONVERSIONS:
+            result = UNIT_CONVERSIONS[key](float(val))
+            answer = f"{result:.2f}".rstrip("0").rstrip(".")
+            questions.append({
+                "question": f"Convert {val} {from_label} to {to_label}.",
+                "answer": answer,
+                "info": '{"category": "conversion", "optimal_calls": 1}',
+            })
+    return questions
+
+
+def _make_computations(rng, n):
+    """Generate computation questions programmatically."""
+    questions = []
+    templates = [
+        lambda r: (f"What is {r.randint(2, 20)} to the power of {r.randint(2, 8)}?",
+                    str(r.randint(2, 20) ** r.randint(2, 8))),
+        lambda r: (f"What is the sum of the first {(k := r.randint(10, 200))} natural numbers?",
+                    str(k * (k + 1) // 2)),
+        lambda r: (f"What is {(a := r.randint(2, 15))} factorial?",
+                    str(math.factorial(a))),
+        lambda r: (f"What is the sum of all even numbers from 1 to {(k := r.randint(20, 200))}?",
+                    str(sum(i for i in range(2, k + 1, 2)))),
+        lambda r: (f"What is the sum of all odd numbers from 1 to {(k := r.randint(20, 200))}?",
+                    str(sum(i for i in range(1, k + 1, 2)))),
+        lambda r: (f"What is the product of {(a := r.randint(2, 50))} and {(b := r.randint(2, 50))} squared?",
+                    str(a * b * b)),
+    ]
+    for _ in range(n):
+        # Use a sub-rng to avoid consuming main rng state unpredictably
+        sub_seed = rng.randint(0, 10**9)
+        sub_rng = random.Random(sub_seed)
+        tmpl = rng.choice(templates)
+        q, a = tmpl(sub_rng)
+        questions.append({
+            "question": q,
+            "answer": a,
+            "info": '{"category": "complex_computation", "optimal_calls": 1}',
+        })
+    return questions
+
+
 def _format_pool(pool, category, optimal_calls):
     """Format a question pool into dataset rows."""
     info = f'{{"category": "{category}", "optimal_calls": {optimal_calls}}}'
@@ -433,10 +499,20 @@ def build_dataset(split: str = "train") -> Dataset:
     # Arithmetic (generated, different seed per split)
     seed = 42 if split == "train" else 99
     rng = random.Random(seed)
-    n_arith = 80 if split == "train" else 15
+    n_arith = 120 if split == "train" else 15
     data.extend(_make_arithmetic(rng, n_arith))
 
-    # Partition hardcoded pools: first N for train, rest for eval
+    # Generated conversions (different seed per split)
+    conv_rng = random.Random(seed + 1000)
+    n_conv_gen = 40 if split == "train" else 10
+    data.extend(_make_conversions(conv_rng, n_conv_gen))
+
+    # Generated computations (different seed per split)
+    comp_rng = random.Random(seed + 2000)
+    n_comp_gen = 30 if split == "train" else 8
+    data.extend(_make_computations(comp_rng, n_comp_gen))
+
+    # Partition handcrafted pools: first N for train, rest for eval
     pools = [
         (FACTUAL_QS, "factual", 1, 28, 10),
         (CONVERSION_QS, "conversion", 1, 22, 8),
