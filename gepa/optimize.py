@@ -1,21 +1,15 @@
-"""GEPA co-evolution: system prompt + evaluation rubric.
+"""GEPA co-evolution: system prompt + evaluation rubric for technical writing.
 
-Co-evolves TWO text artifacts simultaneously using GEPA multi-module optimization:
-  1. system_prompt — instructs the task LM to solve AIME-level math problems
-  2. evaluation_rubric — instructs the evaluator LM to score solutions (without
-     seeing the reference answer, forcing it to develop genuine quality criteria)
+Co-evolves TWO text artifacts simultaneously:
+  1. system_prompt — guides how sonnet writes technical analyses
+  2. evaluation_rubric — evolves criteria for assessing writing quality
 
-Multi-objective scoring via GEPA's Pareto optimization:
-  - generation_quality: does the model get the right answer?
-  - rubric_calibration: does the rubric agree with ground truth?
-Both objectives contribute to the Pareto frontier.
+Ground truth: a fixed expert rubric (applied by gpt-5.4) provides the
+reference quality signal. The evolved rubric tries to match the expert.
+Score = 50% output quality (expert) + 50% rubric calibration (agreement).
 
 Usage:
     python optimize.py > run.log 2>&1
-
-Grep-parsable output:
-    val_score: 0.85
-    best_prompt: {"system_prompt": "...", "evaluation_rubric": "..."}
 """
 
 import json
@@ -41,131 +35,75 @@ log = logging.getLogger(__name__)
 litellm.suppress_debug_info = True
 
 # ============================================================
-# CONFIGURATION (agent modifies these)
+# CONFIGURATION
 # ============================================================
 
-# SOTA models — cross-family to avoid self-evaluation bias
-TASK_LM = "anthropic/claude-sonnet-4-6"       # generates solutions
-EVALUATOR_LM = "openai/gpt-5.4"              # applies the rubric
-REFLECTION_LM = "anthropic/claude-opus-4-6"   # proposes improvements (strongest)
+TASK_LM = "anthropic/claude-sonnet-4-6"       # generates analyses
+EVALUATOR_LM = "openai/gpt-5.4"              # applies both rubrics
+REFLECTION_LM = "anthropic/claude-opus-4-6"   # proposes improvements
 
 MAX_METRIC_CALLS = 80
 
+# Fixed expert rubric — the "ground truth" evaluator (never evolved)
+EXPERT_RUBRIC = (
+    "You are an expert technical writing evaluator. Score the response 0.0 to 1.0.\n\n"
+    "Criteria (each worth ~0.2):\n"
+    "1. ACCURACY: Are all technical claims factually correct? No hallucinations?\n"
+    "2. DEPTH: Does it go beyond surface-level? Are mechanisms/tradeoffs explained?\n"
+    "3. STRUCTURE: Is it well-organized with clear progression of ideas?\n"
+    "4. ACTIONABILITY: Does it provide concrete insights someone could act on?\n"
+    "5. CONCISENESS: Is it appropriately detailed without unnecessary verbosity?\n\n"
+    "Respond with ONLY a single number between 0.0 and 1.0."
+)
+
 SEED = {
     "system_prompt": (
-        "You are an expert mathematician solving competition-level problems. "
-        "Think through each problem carefully and systematically. "
-        "Show your complete reasoning step by step. "
-        "Always end with your final numerical answer on a new line starting with 'ANSWER:' "
-        "followed by just the number (integer). For example: ANSWER: 42"
+        "You are a technical writing assistant. When asked to explain or analyze "
+        "a technical topic, provide a clear, well-structured response. "
+        "Be accurate, insightful, and concise."
     ),
     "evaluation_rubric": (
-        "You are a mathematics evaluation expert. Given a math problem and a "
-        "proposed solution, assess the solution quality on a scale of 0.0 to 1.0.\n"
-        "Consider:\n"
-        "- Mathematical correctness: Are the calculations and logic sound?\n"
-        "- Reasoning completeness: Are all steps justified?\n"
-        "- Answer validity: Does the final answer make sense given the problem?\n"
+        "You are an evaluation assistant. Given a question and a response, "
+        "score the response quality on a scale of 0.0 to 1.0.\n"
+        "Consider correctness, clarity, depth, and usefulness.\n"
         "Respond with ONLY a single number between 0.0 and 1.0."
     ),
 }
 
 # ============================================================
-# DATA — AIME-level problems (all answers verified with Python)
+# DATA — diverse technical analysis prompts
 # ============================================================
 
-def _d(q, a):
-    return {"input": q, "answer": str(a), "additional_context": {}}
+def _d(q):
+    return {"input": q, "answer": "", "additional_context": {}}
 
 TRAINSET = [
-    # Number theory
-    _d("Find the number of positive integers n less than or equal to 100 such that n^2 - 1 is divisible by 24.", 33),
-    _d("Find the remainder when 3^2024 is divided by 100.", 81),
-    _d("How many positive integers n satisfy both n | 720 and gcd(n, 30) = 6?", 8),
-    # Combinatorics
-    _d("A committee of 5 is to be formed from 6 men and 4 women. In how many ways can this be done if the committee must contain at least 2 women?", 186),
-    _d("In how many ways can 12 identical balls be distributed into 4 distinct boxes such that each box contains at least 2 balls?", 10),
-    _d("How many 6-digit positive integers have their digits in strictly increasing order?", 84),
-    # Algebra
-    _d("If x and y are positive reals with x + y = 10 and x^2 + y^2 = 58, find xy.", 21),
-    _d("Find the sum of all real solutions to the equation |2x - 5| + |x + 3| = 10.", 2),
-    # Geometry
-    _d("In triangle ABC, AB = 13, BC = 14, and CA = 15. Find the area of triangle ABC.", 84),
-    _d("A circle is inscribed in a right triangle with legs 5 and 12. What is the radius of the inscribed circle?", 2),
-    # Probability
-    _d("Three distinct numbers are chosen at random from {1, 2, 3, ..., 10}. What is the probability that the sum of the three numbers is divisible by 3? Express as a percentage rounded to the nearest integer.", 35),
-    # Series
-    _d("Find the value of the sum: 1*2 + 2*3 + 3*4 + ... + 99*100.", 333300),
+    _d("Explain how database connection pooling works, when to use it, and common pitfalls."),
+    _d("What are the tradeoffs between microservices and monolithic architectures? When should you choose each?"),
+    _d("Explain how TLS 1.3 handshake differs from TLS 1.2 and why the changes were made."),
+    _d("What is the CAP theorem and how do real-world distributed databases handle it?"),
+    _d("Explain the difference between optimistic and pessimistic concurrency control. Give concrete examples."),
+    _d("How does a B-tree index work in a database? Why is it preferred over a hash index for range queries?"),
+    _d("What are the key differences between REST and GraphQL APIs? When would you choose one over the other?"),
+    _d("Explain how garbage collection works in the JVM, including the different collector types and when to use each."),
+    _d("What is eventual consistency? Give a real-world example where it causes problems and how to mitigate them."),
+    _d("Explain the concept of backpressure in distributed systems and common strategies for handling it."),
+    _d("How does consistent hashing work and why is it important for distributed caching?"),
+    _d("What are the tradeoffs of using event sourcing vs traditional CRUD for application state management?"),
 ]
 
 VALSET = [
-    _d("Find the number of ordered pairs (a, b) of positive integers such that a + b = 100 and lcm(a, b) = 180.", 0),
-    _d("How many 4-digit palindromes are divisible by 3?", 30),
-    _d("Find the last three digits of 7^999.", 143),
-    _d("In how many ways can you tile a 2x10 board with 1x2 dominoes?", 89),
-    _d("If a, b, c are roots of x^3 - 6x^2 + 11x - 6 = 0, find a^2 + b^2 + c^2.", 14),
-    _d("A bag has 5 red and 7 blue balls. Balls are drawn one at a time without replacement until 2 red balls have been drawn. What is the expected number of draws? Express as a fraction's numerator if the fraction in lowest terms is p/q. Give p.", 13),
+    _d("Explain how the Linux kernel's OOM killer works and how to tune it for production servers."),
+    _d("What are the security implications of JWT tokens vs session-based authentication?"),
+    _d("Explain the differences between TCP congestion control algorithms (Reno, CUBIC, BBR)."),
+    _d("How does write-ahead logging (WAL) work in databases and why is it critical for durability?"),
+    _d("What are the tradeoffs between row-oriented and column-oriented databases?"),
+    _d("Explain how container networking works in Kubernetes, including the CNI plugin architecture."),
 ]
 
 # ============================================================
 # HELPERS
 # ============================================================
-
-def extract_number(text):
-    """Extract the final numerical answer from text."""
-    # Look for ANSWER: pattern first
-    m = re.search(r'ANSWER:\s*\$?\s*([\d,./]+)', text, re.IGNORECASE)
-    if m:
-        return _norm(m.group(1))
-    # Look for boxed answer (LaTeX)
-    m = re.search(r'\\boxed\{(\d+)\}', text)
-    if m:
-        return _norm(m.group(1))
-    # Fall back to last number in text
-    nums = re.findall(r'\b\d+\b', text)
-    if nums:
-        return _norm(nums[-1])
-    return None
-
-
-def _norm(s):
-    """Normalize a number string for comparison."""
-    s = s.strip().rstrip('.').replace(',', '')
-    if '/' in s:
-        return s
-    try:
-        v = float(s)
-        return str(int(v)) if v == int(v) else str(v)
-    except ValueError:
-        return s
-
-
-def check_answer(generated, reference):
-    """Check if the generated answer matches the reference. Returns 0.0 or 1.0."""
-    gen = extract_number(generated)
-    ref = _norm(reference)
-    if gen is None:
-        return 0.0
-    if gen == ref:
-        return 1.0
-    try:
-        if abs(float(gen) - float(ref)) < 0.01:
-            return 1.0
-    except (ValueError, ZeroDivisionError):
-        pass
-    # Fraction comparison
-    def _eval_frac(s):
-        if '/' in s:
-            a, b = s.split('/')
-            return float(a) / float(b)
-        return float(s)
-    try:
-        if abs(_eval_frac(gen) - _eval_frac(ref)) < 0.01:
-            return 1.0
-    except (ValueError, ZeroDivisionError):
-        pass
-    return 0.0
-
 
 def extract_score(text):
     """Extract a 0-1 score from evaluator response."""
@@ -175,12 +113,33 @@ def extract_score(text):
     return 0.5
 
 
+def evaluate_with_rubric(rubric_text, question, response):
+    """Score a response using a given rubric via the evaluator LM."""
+    try:
+        resp = litellm.completion(
+            model=EVALUATOR_LM,
+            messages=[
+                {"role": "system", "content": rubric_text},
+                {"role": "user", "content": (
+                    f"Question: {question}\n\n"
+                    f"Response to evaluate:\n{response}\n\n"
+                    f"Score (0.0 to 1.0):"
+                )},
+            ],
+            temperature=0,
+            max_tokens=10,
+        )
+        return extract_score(resp.choices[0].message.content)
+    except Exception:
+        return 0.5
+
+
 # ============================================================
 # ADAPTER
 # ============================================================
 
 class CoEvolutionAdapter(GEPAAdapter):
-    """Co-evolves system_prompt and evaluation_rubric with multi-objective scoring."""
+    """Co-evolves system_prompt and evaluation_rubric for technical writing."""
 
     def evaluate(self, batch, candidate, capture_traces=False):
         system_prompt = candidate["system_prompt"]
@@ -191,7 +150,7 @@ class CoEvolutionAdapter(GEPAAdapter):
         trajectories = [] if capture_traces else None
 
         for item in batch:
-            # Step 1: Generate solution using system_prompt (temp=0 for determinism)
+            # Step 1: Generate response using evolved system_prompt
             try:
                 gen_resp = litellm.completion(
                     model=TASK_LM,
@@ -200,58 +159,44 @@ class CoEvolutionAdapter(GEPAAdapter):
                         {"role": "user", "content": item["input"]},
                     ],
                     temperature=0,
-                    max_tokens=2048,
+                    max_tokens=1500,
                 )
                 generated = gen_resp.choices[0].message.content
             except Exception as e:
                 generated = f"[Generation error: {e}]"
 
-            # Step 2: Evaluate with rubric (NO reference answer)
-            try:
-                eval_resp = litellm.completion(
-                    model=EVALUATOR_LM,
-                    messages=[
-                        {"role": "system", "content": rubric},
-                        {"role": "user", "content": (
-                            f"Problem: {item['input']}\n\n"
-                            f"Proposed solution:\n{generated}\n\n"
-                            f"Score (0.0 to 1.0):"
-                        )},
-                    ],
-                    temperature=0,
-                    max_tokens=10,
-                )
-                rubric_score = extract_score(eval_resp.choices[0].message.content)
-            except Exception:
-                rubric_score = 0.5
+            # Step 2: Score with evolved rubric
+            rubric_score = evaluate_with_rubric(rubric, item["input"], generated)
 
-            # Step 3: Ground truth check
-            gt = check_answer(generated, item["answer"])
+            # Step 3: Score with fixed expert rubric (ground truth)
+            expert_score = evaluate_with_rubric(EXPERT_RUBRIC, item["input"], generated)
 
-            # Multi-objective scoring
-            calibration = 1.0 - abs(rubric_score - gt)
-            # Combined score for GEPA's primary metric
-            score = 0.6 * gt + 0.4 * calibration
+            # Scoring: output quality + rubric calibration
+            calibration = 1.0 - abs(rubric_score - expert_score)
+            score = 0.5 * expert_score + 0.5 * calibration
 
-            outputs.append({"generated": generated, "rubric_score": rubric_score, "gt": gt})
+            outputs.append({
+                "generated": generated[:500],
+                "rubric_score": rubric_score,
+                "expert_score": expert_score,
+            })
             scores.append(score)
             objective_scores.append({
-                "generation_quality": gt,
+                "output_quality": expert_score,
                 "rubric_calibration": calibration,
             })
 
             if capture_traces:
                 trajectories.append({
                     "input": item["input"],
-                    "reference": item["answer"],
                     "generated": generated,
                     "rubric_score": rubric_score,
-                    "gt": gt,
+                    "expert_score": expert_score,
                     "feedback": (
-                        f"Ground truth: {'CORRECT' if gt else 'INCORRECT'} (answer={item['answer']}). "
-                        f"Rubric scored {rubric_score:.2f}. "
+                        f"Expert score: {expert_score:.2f}. "
+                        f"Rubric score: {rubric_score:.2f}. "
                         f"Calibration: {calibration:.2f}. "
-                        f"Final score: {score:.2f}"
+                        f"Final: {score:.2f}"
                     ),
                 })
 
@@ -269,26 +214,27 @@ class CoEvolutionAdapter(GEPAAdapter):
             for traj in eval_batch.trajectories:
                 if comp == "system_prompt":
                     examples.append({
-                        "Inputs": f"Problem: {traj['input']}",
-                        "Generated Outputs": traj["generated"],
+                        "Inputs": f"Topic: {traj['input']}",
+                        "Generated Outputs": traj["generated"][:1000],
                         "Feedback": (
-                            f"Expected answer: {traj['reference']}. "
+                            f"Expert quality score: {traj['expert_score']:.2f}/1.0. "
+                            f"The expert evaluates on: accuracy, depth, structure, "
+                            f"actionability, and conciseness. "
                             f"{traj['feedback']}"
                         ),
                     })
                 elif comp == "evaluation_rubric":
                     examples.append({
                         "Inputs": (
-                            f"Problem: {traj['input']}\n"
-                            f"Proposed solution: {traj['generated']}"
+                            f"Topic: {traj['input']}\n"
+                            f"Response (truncated): {traj['generated'][:500]}"
                         ),
-                        "Generated Outputs": f"Score: {traj['rubric_score']:.2f}",
+                        "Generated Outputs": f"Rubric score: {traj['rubric_score']:.2f}",
                         "Feedback": (
-                            f"Ground truth: {'CORRECT' if traj['gt'] else 'INCORRECT'} "
-                            f"(answer={traj['reference']}). "
-                            f"Rubric gave {traj['rubric_score']:.2f}, "
-                            f"ideal would be {traj['gt']:.1f}. "
-                            f"Error: {abs(traj['rubric_score'] - traj['gt']):.2f}"
+                            f"Expert score: {traj['expert_score']:.2f}. "
+                            f"Your rubric gave {traj['rubric_score']:.2f}. "
+                            f"Calibration error: {abs(traj['rubric_score'] - traj['expert_score']):.2f}. "
+                            f"The ideal rubric would match the expert's assessment."
                         ),
                     })
             reflective_data[comp] = examples
@@ -300,14 +246,12 @@ class CoEvolutionAdapter(GEPAAdapter):
 # ============================================================
 
 def main():
-    log.info("Starting GEPA co-evolution")
+    log.info("Starting GEPA co-evolution (technical writing)")
     log.info(f"Task LM: {TASK_LM}")
     log.info(f"Evaluator LM: {EVALUATOR_LM}")
     log.info(f"Reflection LM: {REFLECTION_LM}")
     log.info(f"Budget: {MAX_METRIC_CALLS} metric calls")
     log.info(f"Train: {len(TRAINSET)} examples, Val: {len(VALSET)} examples")
-    log.info(f"Seed system_prompt: {SEED['system_prompt'][:100]}...")
-    log.info(f"Seed rubric: {SEED['evaluation_rubric'][:100]}...")
 
     adapter = CoEvolutionAdapter()
 
@@ -321,12 +265,12 @@ def main():
         module_selector="round_robin",
         candidate_selection_strategy="pareto",
         frontier_type="hybrid",
-        reflection_minibatch_size=6,
+        reflection_minibatch_size=4,
         use_merge=True,
+        skip_perfect_score=False,
         display_progress_bar=True,
     )
 
-    # Extract results
     best = result.best_candidate
     best_idx = result.best_idx
     val_score = result.val_aggregate_scores[best_idx]
@@ -344,10 +288,9 @@ def main():
     log.info(f"Candidates explored: {len(result.candidates)}")
     log.info(f"Total metric calls: {result.total_metric_calls}")
 
-    # Log per-objective scores if available
     if result.val_aggregate_subscores and best_idx < len(result.val_aggregate_subscores):
         subs = result.val_aggregate_subscores[best_idx]
-        log.info(f"Generation quality: {subs.get('generation_quality', 'N/A')}")
+        log.info(f"Output quality: {subs.get('output_quality', 'N/A')}")
         log.info(f"Rubric calibration: {subs.get('rubric_calibration', 'N/A')}")
 
 
