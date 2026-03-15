@@ -38,10 +38,10 @@ MODEL = "Qwen/Qwen3-8B"                    # Base model to fine-tune
 LORA_RANK = 32                              # LoRA rank (32 = cookbook default)
 LEARNING_RATE = 4e-5                        # Proven optimal LR
 BATCH_SIZE = 128                            # Prompts per training batch (>= 128, see rules.md)
-GROUP_SIZE = 16                             # G=16 for 82% non-uniform groups at 90%+ success rate
-MAX_TOKENS = 4096                           # Proven sweet spot for reasoning chains
+GROUP_SIZE = 16                             # G=16 for best advantage estimates
+MAX_TOKENS = 8192                           # 8192 for longest reasoning chains
 TEMPERATURE = 1.0                           # Sampling temperature (1.0 for GRPO, see rules.md)
-N_BATCHES = 50                              # Standard count, G=16 is compute-heavy
+N_BATCHES = 30                              # Fewer batches — G=16 + 8192 tokens is very compute-heavy
 SAVE_EVERY = 10                             # Checkpoint every N batches (0 = disabled)
 LOSS_FN = "ppo"                             # PPO: proven best (DRO catastrophically fails)
 
