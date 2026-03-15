@@ -1,6 +1,6 @@
-# posttrainer
+# PraxLab
 
-Autonomous training harness inspired by Karpathy's autoresearch. Tree of self-contained workspaces — each with a `program.md` the user customizes, mutable training scripts, and experiment tracking. Agent-agnostic (works with any agent runtime). Supports both pre-training (from scratch) and post-training (fine-tuning).
+Autonomous experiment harness inspired by Karpathy's autoresearch. Tree of self-contained workspaces — each with a `program.md` the user customizes, mutable training scripts, and experiment tracking. Agent-agnostic (works with any agent runtime). Supports both pre-training (from scratch) and post-training (fine-tuning).
 
 ## Structure
 - `pretrain/` — Pre-training from scratch (autoresearch infrastructure, Modal GPU, BPB metric)

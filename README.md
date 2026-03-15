@@ -1,4 +1,4 @@
-# posttrainer
+# PraxLab
 
 Autonomous experiment harness inspired by [Karpathy's autoresearch](https://github.com/karpathy/autoresearch). Point an AI agent at a task, and it builds, trains, and iterates forever — modifying model architectures, reward functions, prompts, and hyperparameters to continuously improve. Supports pre-training, post-training, and prompt optimization.
 
@@ -35,7 +35,7 @@ To reset after an experiment: `git checkout main` (or run `./clean.sh` to also r
 ## Architecture
 
 ```
-posttrainer/
+praxlab/
 ├── README.md              ← you are here
 ├── lab                    ← experiment tracking CLI (SQLite, 5 commands, zero deps)
 ├── clean.sh               ← reset generated files
