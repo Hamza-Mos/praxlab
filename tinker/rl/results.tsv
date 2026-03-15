@@ -1,1 +1,6 @@
 commit	eval_reward_mean	eval_all_one_rate	eval_all_zero_rate	status	description
+b8fe6d7	0.9125	0.76	0.02	keep	N_BATCHES 75 with MAX_TOKENS 4096
+f09afaa	0.93	0.88	0.02	keep	MAX_TOKENS 8192 GROUP_SIZE 4
+8f45b9e	0.91	0.84	0.04	discard	500 prompts with GROUP_SIZE 4 (skip rate too high)
+6c8e378	0.9275	0.80	0.02	discard	500 prompts G=8 MAX_TOKENS 4096 (close but below best)
+b439d82	0.905	0.70	0.0	discard	GROUP_SIZE 16 MAX_TOKENS 4096 (great training signal but 4096 bottleneck)
