@@ -5,7 +5,7 @@ rollouts_per_example = 64
 oversampling_factor = 2.5
 max_async_level = 1
 learning_rate = 1e-5
-lora_alpha = 128
+lora_alpha = 64
 
 [sampling]
 max_tokens = 1024
@@ -33,7 +33,7 @@ interval = 5
 
 [buffer]
 online_difficulty_filtering = true
-easy_threshold = 0.9
+easy_threshold = 0.95
 hard_threshold = 0.1
 easy_fraction = 0.0
 hard_fraction = 0.0
