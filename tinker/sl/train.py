@@ -35,6 +35,7 @@ MAX_LENGTH = 4096                           # Max sequence length (prompt + resp
 N_EPOCHS = 4                                # Number of passes through the data
 SAVE_EVERY = 20                             # Checkpoint every N batches (0 = disabled)
 EVAL_SPLIT = 0.1                            # Fraction of data held out for eval
+WARMUP_FRACTION = 0.1                       # Fraction of steps for LR warmup (0 = disabled)
 ANSWER_WEIGHT = 1.0                         # Weight multiplier for tokens near \boxed{} answer (1.0 = uniform)
 RESUME_FROM = None                          # Tinker state path to resume from (e.g. "tinker://...weights/step_000020")
 
@@ -45,7 +46,7 @@ SYSTEM_PROMPT = None
 # FIXED — Do not modify unless you know what you're doing
 # ============================================================================
 ADAM_BETA1 = 0.9
-ADAM_BETA2 = 0.99
+ADAM_BETA2 = 0.95
 ADAM_EPS = 1e-8
 
 logging.basicConfig(
@@ -272,8 +273,12 @@ def main():
                 with open(".last_checkpoint", "w") as f:
                     f.write(state_path.path)
 
-            # Linear LR decay
-            lr_mult = max(0.0, 1.0 - global_step / total_steps)
+            # LR schedule: warmup then linear decay
+            warmup_steps = int(total_steps * WARMUP_FRACTION)
+            if global_step < warmup_steps and warmup_steps > 0:
+                lr_mult = global_step / warmup_steps
+            else:
+                lr_mult = max(0.0, 1.0 - global_step / total_steps)
             current_lr = LEARNING_RATE * lr_mult
             adam_params = types.AdamParams(
                 learning_rate=current_lr,
